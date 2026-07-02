@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GymBro</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app" class="container">
+
+    <!-- SCREEN: Login -->
+    <section id="screen-login" class="screen">
+      <div class="form-card">
+        <h1 class="title">GymBro</h1>
+        <p class="subtitle">Gamifica tu ejercicio</p>
+        <form id="form-login" class="form">
+          <input type="text" id="login-name" placeholder="Usuario" required tabindex="0">
+          <input type="password" id="login-password" placeholder="Contraseña" required tabindex="0">
+          <button type="submit" class="btn-primary" tabindex="0">Entrar</button>
+        </form>
+        <button class="btn-link" id="btn-show-register" tabindex="0">Crear cuenta</button>
+        <p id="login-error" class="error" hidden></p>
+      </div>
+    </section>
+
+    <!-- SCREEN: Register -->
+    <section id="screen-register" class="screen" hidden>
+      <div class="form-card form-card--wide">
+        <h1 class="title">Crear cuenta</h1>
+        <form id="form-register" class="form form--grid">
+          <input type="text" id="reg-name" placeholder="Usuario" required tabindex="0">
+          <input type="password" id="reg-password" placeholder="Contraseña" required tabindex="0">
+          <select id="reg-sex" required tabindex="0">
+            <option value="">Sexo</option>
+            <option value="male">Hombre</option>
+            <option value="female">Mujer</option>
+            <option value="other">Otro</option>
+          </select>
+          <input type="number" id="reg-height" placeholder="Altura (cm)" min="50" max="250" required tabindex="0">
+          <input type="number" id="reg-weight" placeholder="Peso (kg)" min="20" max="300" required tabindex="0">
+          <select id="reg-goal" required tabindex="0">
+            <option value="">Objetivo</option>
+            <option value="lose_weight">Perder peso</option>
+            <option value="gain_muscle">Ganar músculo</option>
+            <option value="endurance">Resistencia</option>
+            <option value="maintain">Mantenerme</option>
+          </select>
+          <button type="submit" class="btn-primary" tabindex="0">Registrarse</button>
+        </form>
+        <button class="btn-link" id="btn-show-login" tabindex="0">Ya tengo cuenta</button>
+        <p id="register-error" class="error" hidden></p>
+      </div>
+    </section>
+
+    <!-- SCREEN: Dashboard -->
+    <div id="screen-dashboard" class="screen" hidden>
+      <header class="header">
+        <div>
+          <h1 class="title">GymBro</h1>
+          <p class="greeting" id="greeting"></p>
+        </div>
+        <div class="player-stats">
+          <span class="level" id="disp-level">Nivel 1</span>
+          <span class="points" id="disp-points">0 XP</span>
+        </div>
+      </header>
+
+      <nav class="grid" id="grid" role="navigation" aria-label="Entrenamientos">
+        <button class="card" data-category="cardio" tabindex="0">
+          <span class="card-icon">🏃</span>
+          <span class="card-title">Cardio</span>
+          <span class="card-desc">Quema calorías</span>
+        </button>
+        <button class="card" data-category="strength" tabindex="0">
+          <span class="card-icon">💪</span>
+          <span class="card-title">Fuerza</span>
+          <span class="card-desc">Gana músculo</span>
+        </button>
+        <button class="card" data-category="yoga" tabindex="0">
+          <span class="card-icon">🧘</span>
+          <span class="card-title">Yoga</span>
+          <span class="card-desc">Flexibilidad</span>
+        </button>
+        <button class="card" data-category="hiit" tabindex="0">
+          <span class="card-icon">⚡</span>
+          <span class="card-title">HIIT</span>
+          <span class="card-desc">Alta intensidad</span>
+        </button>
+        <button class="card" data-category="dance" tabindex="0">
+          <span class="card-icon">🕺</span>
+          <span class="card-title">Baile</span>
+          <span class="card-desc">Diviértete</span>
+        </button>
+        <button class="card" data-category="meditation" tabindex="0">
+          <span class="card-icon">🧠</span>
+          <span class="card-title">Meditación</span>
+          <span class="card-desc">Mente sana</span>
+        </button>
+      </nav>
+
+      <div class="action-bar">
+        <button class="btn-secondary" id="btn-profile" tabindex="0">Mi perfil</button>
+        <button class="btn-secondary" id="btn-leaderboard" tabindex="0">Clasificación</button>
+        <button class="btn-secondary" id="btn-logout" tabindex="0">Salir</button>
+      </div>
+    </div>
+
+    <!-- SCREEN: Profile -->
+    <section id="screen-profile" class="screen" hidden>
+      <div class="form-card form-card--wide">
+        <h1 class="title">Mi perfil</h1>
+        <form id="form-profile" class="form form--grid">
+          <p class="field-static" id="prof-name"></p>
+          <p class="field-static" id="prof-created"></p>
+          <select id="prof-sex" required tabindex="0">
+            <option value="male">Hombre</option>
+            <option value="female">Mujer</option>
+            <option value="other">Otro</option>
+          </select>
+          <input type="number" id="prof-height" min="50" max="250" required tabindex="0">
+          <input type="number" id="prof-weight" min="20" max="300" required tabindex="0">
+          <select id="prof-goal" required tabindex="0">
+            <option value="lose_weight">Perder peso</option>
+            <option value="gain_muscle">Ganar músculo</option>
+            <option value="endurance">Resistencia</option>
+            <option value="maintain">Mantenerme</option>
+          </select>
+          <button type="submit" class="btn-primary" tabindex="0">Guardar</button>
+        </form>
+        <button class="btn-link" id="btn-profile-back" tabindex="0">Volver</button>
+        <p id="profile-error" class="error" hidden></p>
+        <p id="profile-success" class="success" hidden></p>
+      </div>
+    </section>
+
+    <!-- SCREEN: Leaderboard -->
+    <section id="screen-leaderboard" class="screen" hidden>
+      <div class="form-card form-card--wide">
+        <h1 class="title">Clasificación</h1>
+        <ol class="leaderboard-list" id="leaderboard-list">
+          <li class="leaderboard-row leaderboard-row--header">
+            <span>#</span><span>Nombre</span><span>Nivel</span><span>Puntos</span>
+          </li>
+        </ol>
+        <button class="btn-link" id="btn-leaderboard-back" tabindex="0">Volver</button>
+      </div>
+    </section>
+
+    <!-- MODAL -->
+    <div class="overlay" id="overlay" hidden>
+      <div class="modal" role="dialog" aria-modal="true">
+        <h2 id="modal-title"></h2>
+        <p id="modal-desc"></p>
+        <button class="btn-primary" id="modal-start" tabindex="0">Comenzar</button>
+        <button class="btn-secondary" id="modal-close" tabindex="0">Cerrar</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

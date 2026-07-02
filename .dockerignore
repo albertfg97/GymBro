@@ -5,3 +5,5 @@ Dockerfile
 README.md
 .gitattributes
 .github
+node_modules
+data
