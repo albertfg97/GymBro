@@ -36,6 +36,12 @@ html, body {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.container::-webkit-scrollbar {
+  display: none;
 }
 
 .screen {
