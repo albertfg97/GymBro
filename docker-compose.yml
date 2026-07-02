@@ -1,0 +1,7 @@
+services:
+  gymbro:
+    image: ${DOCKER_USERNAME:-albertfg97}/gymbro:latest
+    container_name: gymbro
+    restart: unless-stopped
+    ports:
+      - "8080:80"
