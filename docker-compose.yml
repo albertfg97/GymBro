@@ -1,6 +1,6 @@
 services:
   gymbro:
-    image: ${DOCKER_USERNAME:-albertfg97}/gymbro:latest
+    image: dake2414/gymbro:latest
     container_name: gymbro
     restart: unless-stopped
     ports:
