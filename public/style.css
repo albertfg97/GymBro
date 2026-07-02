@@ -651,6 +651,77 @@ select option {
   color: var(--success);
 }
 
+/* -------- History ---------- */
+.history-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.history-stat {
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 0.8rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.history-stat-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+}
+
+.history-stat-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 50vh;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.history-item {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr 4rem 4rem;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.5rem 0.8rem;
+  border-radius: 10px;
+  background: var(--bg);
+  font-size: 0.85rem;
+}
+
+.history-item-icon {
+  font-size: 1.4rem;
+  text-align: center;
+}
+
+.history-item-name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-item-points {
+  color: var(--focus);
+  text-align: right;
+}
+
+.history-item-date {
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-align: right;
+}
+
 /* -------- Messages ---------- */
 .error {
   color: var(--error);

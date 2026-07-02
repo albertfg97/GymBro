@@ -540,6 +540,59 @@
     focusGrid(0);
   });
 
+  /* ---------- history ---------- */
+  document.getElementById('btn-history').addEventListener('click', async () => {
+    try {
+      const [history, stats] = await Promise.all([
+        api('GET', '/profile/history?limit=50'),
+        api('GET', '/profile/stats'),
+      ]);
+
+      document.getElementById('history-stats').innerHTML = `
+        <div class="history-stat">
+          <span class="history-stat-value">${stats.total_workouts}</span>
+          <span class="history-stat-label">Entrenos</span>
+        </div>
+        <div class="history-stat">
+          <span class="history-stat-value">${stats.total_minutes}</span>
+          <span class="history-stat-label">Minutos</span>
+        </div>
+        <div class="history-stat">
+          <span class="history-stat-value">${stats.total_xp}</span>
+          <span class="history-stat-label">XP total</span>
+        </div>
+        <div class="history-stat">
+          <span class="history-stat-value">🔥${stats.current_streak}</span>
+          <span class="history-stat-label">Racha</span>
+        </div>
+      `;
+
+      const container = document.getElementById('history-list');
+      container.innerHTML = history.length
+        ? history.map(h => {
+            const date = h.completed_at ? h.completed_at.slice(0, 10) : '';
+            return `
+              <div class="history-item">
+                <span class="history-item-icon">${h.icon}</span>
+                <span class="history-item-name">${h.name}</span>
+                <span class="history-item-points">+${h.points} XP</span>
+                <span class="history-item-date">${date}</span>
+              </div>`;
+          }).join('')
+        : '<p style="color:var(--muted);text-align:center">Aún no has realizado ningún entrenamiento.</p>';
+
+      show('screen-history');
+      document.getElementById('btn-history-back').focus();
+    } catch (err) {
+      console.error(err);
+    }
+  });
+
+  document.getElementById('btn-history-back').addEventListener('click', () => {
+    show('screen-dashboard');
+    focusGrid(0);
+  });
+
   /* ---------- achievements ---------- */
   document.getElementById('btn-achievements').addEventListener('click', async () => {
     try {

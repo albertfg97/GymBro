@@ -37,6 +37,37 @@ router.put('/', auth, (req, res) => {
   res.json(user);
 });
 
+router.get('/history', auth, (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+
+  const rows = db.prepare(`
+    SELECT ws.id, ws.points, ws.duration, ws.completed_at,
+           e.id AS exercise_id, e.name, e.icon, e.category, e.difficulty
+    FROM workout_sessions ws
+    JOIN exercises e ON e.id = ws.exercise_id
+    WHERE ws.user_id = ?
+    ORDER BY ws.completed_at DESC
+    LIMIT ?
+  `).all(req.user.id, limit);
+
+  res.json(rows);
+});
+
+router.get('/stats', auth, (req, res) => {
+  const stats = db.prepare(`
+    SELECT
+      COUNT(*)                                               AS total_workouts,
+      COALESCE(SUM(duration), 0)                             AS total_minutes,
+      COALESCE(SUM(ws.points), 0)                            AS total_xp,
+      (SELECT COUNT(DISTINCT DATE(completed_at))
+       FROM workout_sessions WHERE user_id = ?)              AS total_days
+  `).get(req.user.id, req.user.id);
+
+  const user = db.prepare('SELECT current_streak, max_streak, points, level FROM users WHERE id = ?').get(req.user.id);
+
+  res.json({ ...stats, ...user });
+});
+
 router.post('/points', auth, (req, res) => {
   const { points } = req.body;
   if (!points || points < 0) return res.status(400).json({ error: 'Puntos inválidos' });
