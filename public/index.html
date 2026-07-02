@@ -66,38 +66,16 @@
         </div>
       </header>
 
-      <nav class="grid" id="grid" role="navigation" aria-label="Entrenamientos">
-        <button class="card" data-category="cardio" tabindex="0">
-          <span class="card-icon">🏃</span>
-          <span class="card-title">Cardio</span>
-          <span class="card-desc">Quema calorías</span>
-        </button>
-        <button class="card" data-category="strength" tabindex="0">
-          <span class="card-icon">💪</span>
-          <span class="card-title">Fuerza</span>
-          <span class="card-desc">Gana músculo</span>
-        </button>
-        <button class="card" data-category="yoga" tabindex="0">
-          <span class="card-icon">🧘</span>
-          <span class="card-title">Yoga</span>
-          <span class="card-desc">Flexibilidad</span>
-        </button>
-        <button class="card" data-category="hiit" tabindex="0">
-          <span class="card-icon">⚡</span>
-          <span class="card-title">HIIT</span>
-          <span class="card-desc">Alta intensidad</span>
-        </button>
-        <button class="card" data-category="dance" tabindex="0">
-          <span class="card-icon">🕺</span>
-          <span class="card-title">Baile</span>
-          <span class="card-desc">Diviértete</span>
-        </button>
-        <button class="card" data-category="meditation" tabindex="0">
-          <span class="card-icon">🧠</span>
-          <span class="card-title">Meditación</span>
-          <span class="card-desc">Mente sana</span>
-        </button>
-      </nav>
+      <div class="filter-bar">
+        <button class="btn-filter active" data-filter="all" tabindex="0">Todos</button>
+        <button class="btn-filter" data-filter="cardio" tabindex="0">Cardio</button>
+        <button class="btn-filter" data-filter="strength" tabindex="0">Fuerza</button>
+        <button class="btn-filter" data-filter="yoga" tabindex="0">Yoga</button>
+        <button class="btn-filter" data-filter="hiit" tabindex="0">HIIT</button>
+        <button class="btn-filter" data-filter="dance" tabindex="0">Baile</button>
+        <button class="btn-filter" data-filter="meditation" tabindex="0">Meditación</button>
+      </div>
+      <nav class="grid" id="grid" role="navigation" aria-label="Entrenamientos"></nav>
 
       <div class="action-bar">
         <button class="btn-secondary" id="btn-profile" tabindex="0">Mi perfil</button>
@@ -151,7 +129,12 @@
     <div class="overlay" id="overlay" hidden>
       <div class="modal" role="dialog" aria-modal="true">
         <h2 id="modal-title"></h2>
-        <p id="modal-desc"></p>
+        <p id="modal-desc" class="modal-desc"></p>
+        <div class="modal-meta">
+          <span id="modal-duration">⏱ 0 min</span>
+          <span id="modal-difficulty">📊 Principiante</span>
+          <span id="modal-points">⭐ +0 XP</span>
+        </div>
         <button class="btn-primary" id="modal-start" tabindex="0">Comenzar</button>
         <button class="btn-secondary" id="modal-close" tabindex="0">Cerrar</button>
       </div>

@@ -3,6 +3,9 @@
 
   let token = localStorage.getItem('gymbro-token');
   let currentUser = null;
+  let allExercises = [];
+  let activeFilter = 'all';
+  let focusIndex = 0;
 
   /* ---------- helpers ---------- */
   async function api(method, path, body) {
@@ -41,6 +44,45 @@
     setTimeout(() => el.hidden = true, 3000);
   }
 
+  const diffLabels = { beginner: 'Principiante', intermediate: 'Intermedio', advanced: 'Avanzado' };
+
+  /* ---------- render exercises ---------- */
+  function renderGrid(filter) {
+    const grid = document.getElementById('grid');
+    const filtered = filter === 'all'
+      ? allExercises
+      : allExercises.filter(e => e.category === filter);
+
+    grid.innerHTML = filtered.map((ex, i) => `
+      <button class="card" data-id="${ex.id}" tabindex="0" data-index="${i}">
+        <span class="card-icon">${ex.icon}</span>
+        <span class="card-title">${ex.name}</span>
+        <span class="card-desc">${ex.description}</span>
+        <span class="card-meta">
+          <span>⏱ ${ex.duration} min</span>
+          <span class="diff-${ex.difficulty}">${diffLabels[ex.difficulty]}</span>
+          <span>+${ex.points} XP</span>
+        </span>
+      </button>
+    `).join('');
+
+    focusIndex = 0;
+    if (grid.firstElementChild) grid.firstElementChild.focus();
+  }
+
+  /* ---------- filters ---------- */
+  function setupFilters() {
+    const bar = document.querySelector('.filter-bar');
+    bar.addEventListener('click', (e) => {
+      const btn = e.target.closest('.btn-filter');
+      if (!btn) return;
+      document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeFilter = btn.dataset.filter;
+      renderGrid(activeFilter);
+    });
+  }
+
   /* ---------- auth guard ---------- */
   async function restoreSession() {
     if (!token) return false;
@@ -54,12 +96,19 @@
     }
   }
 
+  async function loadExercises() {
+    allExercises = await api('GET', '/exercises');
+    renderGrid(activeFilter);
+  }
+
   async function enterDashboard(user) {
     currentUser = user;
     document.getElementById('greeting').textContent = `Bienvenido, ${user.name}`;
     document.getElementById('disp-level').textContent = `Nivel ${user.level}`;
     document.getElementById('disp-points').textContent = `${user.points} XP`;
     show('screen-dashboard');
+    await loadExercises();
+    setupFilters();
     focusGrid(0);
   }
 
@@ -187,37 +236,31 @@
     focusGrid(0);
   });
 
+  /* ---------- card delegation ---------- */
+  document.getElementById('grid').addEventListener('click', (e) => {
+    const card = e.target.closest('.card');
+    if (!card) return;
+    const id = parseInt(card.dataset.id);
+    const ex = allExercises.find(e => e.id === id);
+    if (ex) openModal(ex);
+  });
+
   /* ---------- exercise modal ---------- */
-  const cards = Array.from(document.querySelectorAll('.card'));
   const overlay = document.getElementById('overlay');
   const modalTitle = document.getElementById('modal-title');
   const modalDesc = document.getElementById('modal-desc');
+  const modalDuration = document.getElementById('modal-duration');
+  const modalDifficulty = document.getElementById('modal-difficulty');
+  const modalPoints = document.getElementById('modal-points');
   const modalStart = document.getElementById('modal-start');
   const modalClose = document.getElementById('modal-close');
 
-  const trainingInfo = {
-    cardio:     { title: 'Cardio',       desc: 'Quema calorías con sesiones de cardio adaptadas a tu nivel.' },
-    strength:   { title: 'Fuerza',       desc: 'Ejercicios de fuerza para ganar músculo desde casa.' },
-    yoga:       { title: 'Yoga',         desc: 'Mejora tu flexibilidad y equilibrio con rutinas guiadas.' },
-    hiit:       { title: 'HIIT',         desc: 'Entrenamiento de alta intensidad para resultados rápidos.' },
-    dance:      { title: 'Baile',        desc: 'Rutinas de baile para ejercitarte divirtiéndote.' },
-    meditation: { title: 'Meditación',   desc: 'Despeja tu mente y reduce el estrés.' },
-  };
-
-  let focusIndex = 0;
-
-  function focusGrid(idx) {
-    const visibleCards = document.querySelectorAll('#screen-dashboard:not([hidden]) .card');
-    if (!visibleCards.length) return;
-    focusIndex = ((idx % visibleCards.length) + visibleCards.length) % visibleCards.length;
-    visibleCards[focusIndex].focus();
-  }
-
-  function openModal(category) {
-    const info = trainingInfo[category];
-    if (!info) return;
-    modalTitle.textContent = info.title;
-    modalDesc.textContent = info.desc;
+  function openModal(ex) {
+    modalTitle.textContent = ex.name;
+    modalDesc.textContent = ex.description;
+    modalDuration.textContent = `⏱ ${ex.duration} min`;
+    modalDifficulty.textContent = `📊 ${diffLabels[ex.difficulty]}`;
+    modalPoints.textContent = `⭐ +${ex.points} XP`;
     overlay.hidden = false;
     modalStart.focus();
   }
@@ -227,20 +270,20 @@
     focusGrid(focusIndex);
   }
 
-  cards.forEach((card, i) => {
-    card.addEventListener('click', () => {
-      focusIndex = i;
-      openModal(card.dataset.category);
-    });
-  });
-
   modalStart.addEventListener('click', closeModal);
   modalClose.addEventListener('click', closeModal);
   overlay.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeModal();
   });
 
-  /* ---------- global keyboard nav ---------- */
+  /* ---------- keyboard nav ---------- */
+  function focusGrid(idx) {
+    const visibleCards = document.querySelectorAll('#screen-dashboard:not([hidden]) .card');
+    if (!visibleCards.length) return;
+    focusIndex = ((idx % visibleCards.length) + visibleCards.length) % visibleCards.length;
+    visibleCards[focusIndex].focus();
+  }
+
   document.addEventListener('keydown', (e) => {
     if (!overlay.hidden) return;
 

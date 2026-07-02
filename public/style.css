@@ -218,6 +218,64 @@ select option {
   font-size: 1rem;
 }
 
+/* -------- Filter bar ---------- */
+.filter-bar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.2rem;
+  flex-wrap: wrap;
+}
+
+.btn-filter {
+  background: var(--surface);
+  border: 2px solid transparent;
+  border-radius: 100px;
+  padding: 0.5rem 1.2rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s, color 0.2s;
+}
+
+.btn-filter.active {
+  border-color: var(--primary);
+  color: var(--text);
+}
+
+.btn-filter:focus-visible {
+  box-shadow: 0 0 0 3px var(--focus);
+  border-color: var(--focus);
+}
+
+/* -------- Card extras ---------- */
+.card-meta {
+  display: flex;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.diff-beginner    { color: #2ecc71; }
+.diff-intermediate { color: #f39c12; }
+.diff-advanced    { color: #e74c3c; }
+
+/* -------- Modal extras ---------- */
+.modal-desc {
+  color: var(--muted);
+  font-size: 1.1rem;
+}
+
+.modal-meta {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  font-size: 1rem;
+  color: var(--muted);
+}
+
 /* -------- Grid ---------- */
 .grid {
   display: grid;

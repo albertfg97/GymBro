@@ -6,6 +6,7 @@ const fs = require('fs');
 const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profile');
 const leaderboardRoutes = require('./routes/leaderboard');
+const exerciseRoutes = require('./routes/exercises');
 
 const app = express();
 const PORT = process.env.PORT || 80;
@@ -23,6 +24,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
+app.use('/api/exercises', exerciseRoutes);
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
