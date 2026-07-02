@@ -150,4 +150,49 @@ if (achCount.n === 0) {
   tx();
 }
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS routines (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    name        TEXT    NOT NULL,
+    description TEXT    NOT NULL DEFAULT '',
+    icon        TEXT    NOT NULL DEFAULT '📋',
+    difficulty  TEXT    NOT NULL DEFAULT 'beginner',
+    created_at  TEXT    DEFAULT (datetime('now'))
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS routine_exercises (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    routine_id        INTEGER NOT NULL REFERENCES routines(id) ON DELETE CASCADE,
+    exercise_id       INTEGER NOT NULL REFERENCES exercises(id),
+    sort_order        INTEGER NOT NULL DEFAULT 0,
+    duration_override INTEGER
+  )
+`);
+
+const routineCount = db.prepare('SELECT COUNT(*) AS n FROM routines').get();
+if (routineCount.n === 0) {
+  const insR = db.prepare('INSERT INTO routines (name, description, icon, difficulty) VALUES (?, ?, ?, ?)');
+  const insE = db.prepare('INSERT INTO routine_exercises (routine_id, exercise_id, sort_order) VALUES (?, ?, ?)');
+
+  const routines = [
+    ['Cuerpo Completo', 'Rutina equilibrada que trabaja todo el cuerpo.', '🦵', 'beginner', [1, 7, 11, 6, 27]],
+    ['Cardio Express',  'Sesión rápida de cardio para quemar calorías.',  '🏃', 'beginner', [2, 3, 5, 20]],
+    ['Fuerza Rápida',   'Ejercicios de fuerza para tonificar músculos.',  '💪', 'intermediate', [6, 7, 9, 10, 8]],
+    ['Yoga & Mente',    'Relaja cuerpo y mente con yoga y meditación.',   '🧘', 'beginner', [11, 12, 14, 15, 27]],
+    ['HIIT Power',      'Explosivo entrenamiento de alta intensidad.',     '⚡', 'advanced', [4, 16, 17, 18, 19]],
+    ['Ritmo y Baile',   'Diviértete mientras te mueves al ritmo.',        '🕺', 'beginner', [21, 22, 23, 25]],
+  ];
+
+  const tx = db.transaction(() => {
+    for (const [name, desc, icon, diff, exercises] of routines) {
+      const r = insR.run(name, desc, icon, diff);
+      const rid = r.lastInsertRowid;
+      exercises.forEach((eid, idx) => insE.run(rid, eid, idx));
+    }
+  });
+  tx();
+}
+
 module.exports = db;

@@ -4,11 +4,17 @@
   let token = localStorage.getItem('gymbro-token');
   let currentUser = null;
   let allExercises = [];
+  let allRoutines = [];
   let activeFilter = 'all';
+  let activeTab = 'exercises';
   let focusIndex = 0;
   let activeExercise = null;
   let timerInterval = null;
   let timerSeconds = 0;
+  let activeRoutine = null;
+  let routineExerciseIndex = 0;
+  let routineTotalPoints = 0;
+  let routineCompletedDuration = 0;
 
   /* ---------- helpers ---------- */
   async function api(method, path, body) {
@@ -49,34 +55,73 @@
 
   const diffLabels = { beginner: 'Principiante', intermediate: 'Intermedio', advanced: 'Avanzado' };
 
-  /* ---------- render exercises ---------- */
+  /* ---------- exercises ---------- */
   function renderGrid(filter) {
     const grid = document.getElementById('grid');
-    const filtered = filter === 'all'
-      ? allExercises
-      : allExercises.filter(e => e.category === filter);
+    const source = activeTab === 'routines' ? allRoutines : allExercises;
 
-    grid.innerHTML = filtered.map((ex, i) => `
-      <button class="card" data-id="${ex.id}" tabindex="0" data-index="${i}">
-        <span class="card-icon">${ex.icon}</span>
-        <span class="card-title">${ex.name}</span>
-        <span class="card-desc">${ex.description}</span>
-        <span class="card-meta">
-          <span>⏱ ${ex.duration} min</span>
-          <span class="diff-${ex.difficulty}">${diffLabels[ex.difficulty]}</span>
-          <span>+${ex.points} XP</span>
-        </span>
-      </button>
-    `).join('');
+    let items;
+    if (activeTab === 'routines') {
+      items = source;
+    } else {
+      items = filter === 'all' ? source : source.filter(e => e.category === filter);
+    }
+
+    grid.innerHTML = items.map((item, i) => {
+      if (activeTab === 'routines') {
+        const r = item;
+        return `
+          <button class="card card-routine" data-routine-id="${r.id}" tabindex="0">
+            <span class="card-icon">${r.icon}</span>
+            <span class="card-title">${r.name}</span>
+            <span class="card-desc">${r.description}</span>
+            <span class="card-meta">
+              <span>📋 ${r.exerciseCount} ejercicios</span>
+              <span>⏱ ~${r.totalDuration} min</span>
+              <span class="diff-${r.difficulty}">${diffLabels[r.difficulty]}</span>
+            </span>
+          </button>`;
+      }
+      return `
+        <button class="card" data-id="${item.id}" tabindex="0">
+          <span class="card-icon">${item.icon}</span>
+          <span class="card-title">${item.name}</span>
+          <span class="card-desc">${item.description}</span>
+          <span class="card-meta">
+            <span>⏱ ${item.duration} min</span>
+            <span class="diff-${item.difficulty}">${diffLabels[item.difficulty]}</span>
+            <span>+${item.points} XP</span>
+          </span>
+        </button>`;
+    }).join('');
 
     focusIndex = 0;
     if (grid.firstElementChild) grid.firstElementChild.focus();
   }
 
+  /* ---------- tab switching ---------- */
+  function setupTabs() {
+    document.querySelector('.tab-bar').addEventListener('click', (e) => {
+      const btn = e.target.closest('.btn-tab');
+      if (!btn) return;
+      document.querySelectorAll('.btn-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeTab = btn.dataset.tab;
+
+      const filterBar = document.getElementById('filter-bar');
+      filterBar.style.display = activeTab === 'exercises' ? '' : 'none';
+
+      if (activeTab === 'routines') {
+        renderGrid();
+      } else {
+        renderGrid(activeFilter);
+      }
+    });
+  }
+
   /* ---------- filters ---------- */
   function setupFilters() {
-    const bar = document.querySelector('.filter-bar');
-    bar.addEventListener('click', (e) => {
+    document.getElementById('filter-bar').addEventListener('click', (e) => {
       const btn = e.target.closest('.btn-filter');
       if (!btn) return;
       document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
@@ -90,9 +135,15 @@
   document.getElementById('grid').addEventListener('click', (e) => {
     const card = e.target.closest('.card');
     if (!card) return;
-    const id = parseInt(card.dataset.id);
-    const ex = allExercises.find(e => e.id === id);
-    if (ex) openModal(ex);
+    if (activeTab === 'routines') {
+      const id = parseInt(card.dataset.routineId);
+      const routine = allRoutines.find(r => r.id === id);
+      if (routine) openRoutineModal(routine);
+    } else {
+      const id = parseInt(card.dataset.id);
+      const ex = allExercises.find(e => e.id === id);
+      if (ex) openExerciseModal(ex);
+    }
   });
 
   /* ---------- exercise modal ---------- */
@@ -105,7 +156,7 @@
   const modalStart = document.getElementById('modal-start');
   const modalClose = document.getElementById('modal-close');
 
-  function openModal(ex) {
+  function openExerciseModal(ex) {
     activeExercise = ex;
     modalTitle.textContent = ex.name;
     modalDesc.textContent = ex.description;
@@ -119,6 +170,7 @@
   function closeModal() {
     overlay.hidden = true;
     activeExercise = null;
+    activeRoutine = null;
     focusGrid(focusIndex);
   }
 
@@ -127,23 +179,64 @@
     if (e.key === 'Escape') closeModal();
   });
 
+  /* ---------- routine modal ---------- */
+  async function openRoutineModal(routine) {
+    try {
+      const detail = await api('GET', `/routines/${routine.id}`);
+      activeRoutine = detail;
+      modalTitle.textContent = detail.name;
+      modalDesc.textContent = detail.description;
+      modalDuration.textContent = `📋 ${detail.exercises.length} ejercicios`;
+      modalDifficulty.textContent = `📊 ${diffLabels[detail.difficulty]}`;
+
+      const total = detail.exercises.reduce((s, e) => s + (e.duration_override || e.duration), 0);
+      modalPoints.innerHTML = `⏱ ~${total} min`;
+
+      const listHtml = detail.exercises.map((ex, i) =>
+        `<div class="routine-ex-item">
+          <span class="routine-ex-num">${i + 1}</span>
+          <span class="routine-ex-icon">${ex.icon}</span>
+          <span class="routine-ex-name">${ex.name}</span>
+          <span class="routine-ex-dur">${ex.duration_override || ex.duration} min</span>
+        </div>`
+      ).join('');
+
+      modalStart.textContent = 'Comenzar rutina';
+      overlay.hidden = false;
+      modalStart.focus();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   /* ---------- workout flow ---------- */
   modalStart.addEventListener('click', () => {
-    if (!activeExercise) return;
-    overlay.hidden = true;
-    startWorkout(activeExercise);
+    if (activeRoutine) {
+      overlay.hidden = true;
+      routineExerciseIndex = 0;
+      routineTotalPoints = 0;
+      routineCompletedDuration = 0;
+      startRoutineExercise();
+    } else if (activeExercise) {
+      overlay.hidden = true;
+      startWorkout(activeExercise, false);
+    }
   });
 
   const workoutIcon = document.getElementById('workout-icon');
   const workoutName = document.getElementById('workout-name');
   const workoutTimer = document.getElementById('workout-timer');
+  const workoutHint = document.getElementById('workout-hint');
   const workoutComplete = document.getElementById('workout-complete');
   const workoutCancel = document.getElementById('workout-cancel');
 
-  function startWorkout(ex) {
+  function startWorkout(ex, isRoutine) {
     activeExercise = ex;
     workoutIcon.textContent = ex.icon;
     workoutName.textContent = ex.name;
+    workoutHint.textContent = isRoutine
+      ? `Ejercicio ${routineExerciseIndex + 1} de ${activeRoutine.exercises.length}`
+      : 'Realiza el ejercicio y presiona Completar cuando termines';
     timerSeconds = 0;
     updateTimerDisplay();
     show('screen-workout');
@@ -174,63 +267,100 @@
     stopTimer();
 
     const actualDuration = Math.max(1, Math.round(timerSeconds / 60));
+    const isRoutine = activeRoutine !== null;
 
     try {
       const result = await api('POST', '/workouts/complete', {
         exerciseId: activeExercise.id,
         duration: actualDuration,
       });
-      showResult(result);
+
+      document.getElementById('disp-points').textContent = `${result.totalPoints} XP`;
+      document.getElementById('disp-level').textContent = `Nivel ${result.level}`;
+      document.getElementById('disp-streak').textContent = `🔥 ${result.currentStreak} días`;
+
+      if (currentUser) {
+        currentUser.points = result.totalPoints;
+        currentUser.level = result.level;
+      }
+
+      if (isRoutine) {
+        routineTotalPoints += result.points;
+        routineCompletedDuration += actualDuration;
+        routineExerciseIndex++;
+
+        if (routineExerciseIndex >= activeRoutine.exercises.length) {
+          showRoutineComplete();
+        } else {
+          startRoutineExercise();
+        }
+      } else {
+        showResult(result, false);
+      }
     } catch (err) {
-      showResult({ error: err.message });
+      showResult({ error: err.message }, false);
     }
   });
+
+  function startRoutineExercise() {
+    const ex = activeRoutine.exercises[routineExerciseIndex];
+    startWorkout(ex, true);
+  }
 
   workoutCancel.addEventListener('click', () => {
     stopTimer();
     activeExercise = null;
+    activeRoutine = null;
     show('screen-dashboard');
     focusGrid(0);
   });
 
   /* ---------- result ---------- */
   const resultOverlay = document.getElementById('result-overlay');
+  const resultTitle = document.querySelector('.result-title');
   const resultPoints = document.getElementById('result-points');
   const resultStreak = document.getElementById('result-streak');
   const resultAchievements = document.getElementById('result-achievements');
   const resultOk = document.getElementById('result-ok');
 
-  function showResult(data) {
+  function showResult(data, isRoutine) {
     if (data.error) {
       resultPoints.textContent = '❌ Error';
       resultStreak.textContent = '';
       resultAchievements.innerHTML = `<p style="color:var(--error)">${data.error}</p>`;
     } else {
+      resultTitle.textContent = isRoutine ? '🎉 Rutina completada' : '🎉 Ejercicio completado';
       resultPoints.textContent = `+${data.points} XP`;
       resultStreak.textContent = `🔥 Rachas: ${data.currentStreak} días`;
-
-      document.getElementById('disp-points').textContent = `${data.totalPoints} XP`;
-      document.getElementById('disp-level').textContent = `Nivel ${data.level}`;
-      document.getElementById('disp-streak').textContent = `🔥 ${data.currentStreak} días`;
-
-      if (currentUser) {
-        currentUser.points = data.totalPoints;
-        currentUser.level = data.level;
-      }
-
-      if (data.newAchievements && data.newAchievements.length > 0) {
-        resultAchievements.innerHTML = '<h3 style="font-size:1.2rem;color:var(--success)">🎖️ Nuevos logros</h3>' +
-          data.newAchievements.map(a =>
-            `<div class="result-achievement">${a.icon} ${a.name}: ${a.description}</div>`
-          ).join('');
-      } else {
-        resultAchievements.innerHTML = '';
-      }
+      showAchievements(data.newAchievements);
     }
-
     activeExercise = null;
+    activeRoutine = null;
     resultOverlay.hidden = false;
     resultOk.focus();
+  }
+
+  function showRoutineComplete() {
+    stopTimer();
+    resultTitle.textContent = '🎉 Rutina completada';
+    resultPoints.textContent = `+${routineTotalPoints} XP total`;
+    resultStreak.textContent = `⏱ ${routineCompletedDuration} min`;
+    resultAchievements.innerHTML = '';
+    activeExercise = null;
+    activeRoutine = null;
+    resultOverlay.hidden = false;
+    resultOk.focus();
+  }
+
+  function showAchievements(newAchievements) {
+    if (newAchievements && newAchievements.length > 0) {
+      resultAchievements.innerHTML = '<h3 style="font-size:1.2rem;color:var(--success)">🎖️ Nuevos logros</h3>' +
+        newAchievements.map(a =>
+          `<div class="result-achievement">${a.icon} ${a.name}: ${a.description}</div>`
+        ).join('');
+    } else {
+      resultAchievements.innerHTML = '';
+    }
   }
 
   resultOk.addEventListener('click', () => {
@@ -260,9 +390,13 @@
     }
   }
 
-  async function loadExercises() {
-    allExercises = await api('GET', '/exercises');
-    renderGrid(activeFilter);
+  async function loadData() {
+    const [exercises, routines] = await Promise.all([
+      api('GET', '/exercises'),
+      api('GET', '/routines'),
+    ]);
+    allExercises = exercises;
+    allRoutines = routines;
   }
 
   async function enterDashboard(user) {
@@ -275,7 +409,9 @@
     document.getElementById('disp-streak').textContent = `🔥 ${usr.current_streak || 0} días`;
 
     show('screen-dashboard');
-    await loadExercises();
+    await loadData();
+    renderGrid(activeFilter);
+    setupTabs();
     setupFilters();
     focusGrid(0);
   }
@@ -338,7 +474,7 @@
   /* ---------- profile ---------- */
   document.getElementById('btn-profile').addEventListener('click', async () => {
     try {
-      const user = currentUser ? await api('GET', '/profile') : currentUser;
+      const user = await api('GET', '/profile');
       document.getElementById('prof-name').textContent = `👤 ${user.name}`;
       document.getElementById('prof-created').textContent = `Desde ${user.created_at?.slice(0, 10) || '-'}`;
       document.getElementById('prof-sex').value = user.sex;
@@ -419,14 +555,12 @@
         const earnedAt = earnedMap[a.id];
         const cls = earnedAt ? 'earned' : 'locked';
         const dateHtml = earnedAt ? `<span class="achievement-date">✓ ${earnedAt.slice(0, 10)}</span>` : '';
-        return `
-          <div class="achievement-card ${cls}">
-            <span class="achievement-icon">${a.icon}</span>
-            <span class="achievement-name">${a.name}</span>
-            <span class="achievement-desc">${a.description}</span>
-            ${dateHtml}
-          </div>
-        `;
+        return `<div class="achievement-card ${cls}">
+          <span class="achievement-icon">${a.icon}</span>
+          <span class="achievement-name">${a.name}</span>
+          <span class="achievement-desc">${a.description}</span>
+          ${dateHtml}
+        </div>`;
       }).join('');
 
       show('screen-achievements');

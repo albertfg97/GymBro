@@ -9,6 +9,7 @@ const leaderboardRoutes = require('./routes/leaderboard');
 const exerciseRoutes = require('./routes/exercises');
 const workoutRoutes = require('./routes/workouts');
 const achievementRoutes = require('./routes/achievements');
+const routineRoutes = require('./routes/routines');
 
 const app = express();
 const PORT = process.env.PORT || 80;
@@ -29,6 +30,7 @@ app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/exercises', exerciseRoutes);
 app.use('/api/workouts', workoutRoutes);
 app.use('/api/achievements', achievementRoutes);
+app.use('/api/routines', routineRoutes);
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
