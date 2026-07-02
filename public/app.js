@@ -6,6 +6,9 @@
   let allExercises = [];
   let activeFilter = 'all';
   let focusIndex = 0;
+  let activeExercise = null;
+  let timerInterval = null;
+  let timerSeconds = 0;
 
   /* ---------- helpers ---------- */
   async function api(method, path, body) {
@@ -83,6 +86,167 @@
     });
   }
 
+  /* ---------- card delegation ---------- */
+  document.getElementById('grid').addEventListener('click', (e) => {
+    const card = e.target.closest('.card');
+    if (!card) return;
+    const id = parseInt(card.dataset.id);
+    const ex = allExercises.find(e => e.id === id);
+    if (ex) openModal(ex);
+  });
+
+  /* ---------- exercise modal ---------- */
+  const overlay = document.getElementById('overlay');
+  const modalTitle = document.getElementById('modal-title');
+  const modalDesc = document.getElementById('modal-desc');
+  const modalDuration = document.getElementById('modal-duration');
+  const modalDifficulty = document.getElementById('modal-difficulty');
+  const modalPoints = document.getElementById('modal-points');
+  const modalStart = document.getElementById('modal-start');
+  const modalClose = document.getElementById('modal-close');
+
+  function openModal(ex) {
+    activeExercise = ex;
+    modalTitle.textContent = ex.name;
+    modalDesc.textContent = ex.description;
+    modalDuration.textContent = `⏱ ${ex.duration} min`;
+    modalDifficulty.textContent = `📊 ${diffLabels[ex.difficulty]}`;
+    modalPoints.textContent = `⭐ +${ex.points} XP`;
+    overlay.hidden = false;
+    modalStart.focus();
+  }
+
+  function closeModal() {
+    overlay.hidden = true;
+    activeExercise = null;
+    focusGrid(focusIndex);
+  }
+
+  modalClose.addEventListener('click', closeModal);
+  overlay.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeModal();
+  });
+
+  /* ---------- workout flow ---------- */
+  modalStart.addEventListener('click', () => {
+    if (!activeExercise) return;
+    overlay.hidden = true;
+    startWorkout(activeExercise);
+  });
+
+  const workoutIcon = document.getElementById('workout-icon');
+  const workoutName = document.getElementById('workout-name');
+  const workoutTimer = document.getElementById('workout-timer');
+  const workoutComplete = document.getElementById('workout-complete');
+  const workoutCancel = document.getElementById('workout-cancel');
+
+  function startWorkout(ex) {
+    activeExercise = ex;
+    workoutIcon.textContent = ex.icon;
+    workoutName.textContent = ex.name;
+    timerSeconds = 0;
+    updateTimerDisplay();
+    show('screen-workout');
+    workoutComplete.focus();
+
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+      timerSeconds++;
+      updateTimerDisplay();
+    }, 1000);
+  }
+
+  function updateTimerDisplay() {
+    const m = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
+    const s = String(timerSeconds % 60).padStart(2, '0');
+    workoutTimer.textContent = `⏱ ${m}:${s}`;
+  }
+
+  function stopTimer() {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+  }
+
+  workoutComplete.addEventListener('click', async () => {
+    if (!activeExercise) return;
+    stopTimer();
+
+    const actualDuration = Math.max(1, Math.round(timerSeconds / 60));
+
+    try {
+      const result = await api('POST', '/workouts/complete', {
+        exerciseId: activeExercise.id,
+        duration: actualDuration,
+      });
+      showResult(result);
+    } catch (err) {
+      showResult({ error: err.message });
+    }
+  });
+
+  workoutCancel.addEventListener('click', () => {
+    stopTimer();
+    activeExercise = null;
+    show('screen-dashboard');
+    focusGrid(0);
+  });
+
+  /* ---------- result ---------- */
+  const resultOverlay = document.getElementById('result-overlay');
+  const resultPoints = document.getElementById('result-points');
+  const resultStreak = document.getElementById('result-streak');
+  const resultAchievements = document.getElementById('result-achievements');
+  const resultOk = document.getElementById('result-ok');
+
+  function showResult(data) {
+    if (data.error) {
+      resultPoints.textContent = '❌ Error';
+      resultStreak.textContent = '';
+      resultAchievements.innerHTML = `<p style="color:var(--error)">${data.error}</p>`;
+    } else {
+      resultPoints.textContent = `+${data.points} XP`;
+      resultStreak.textContent = `🔥 Rachas: ${data.currentStreak} días`;
+
+      document.getElementById('disp-points').textContent = `${data.totalPoints} XP`;
+      document.getElementById('disp-level').textContent = `Nivel ${data.level}`;
+      document.getElementById('disp-streak').textContent = `🔥 ${data.currentStreak} días`;
+
+      if (currentUser) {
+        currentUser.points = data.totalPoints;
+        currentUser.level = data.level;
+      }
+
+      if (data.newAchievements && data.newAchievements.length > 0) {
+        resultAchievements.innerHTML = '<h3 style="font-size:1.2rem;color:var(--success)">🎖️ Nuevos logros</h3>' +
+          data.newAchievements.map(a =>
+            `<div class="result-achievement">${a.icon} ${a.name}: ${a.description}</div>`
+          ).join('');
+      } else {
+        resultAchievements.innerHTML = '';
+      }
+    }
+
+    activeExercise = null;
+    resultOverlay.hidden = false;
+    resultOk.focus();
+  }
+
+  resultOk.addEventListener('click', () => {
+    resultOverlay.hidden = true;
+    show('screen-dashboard');
+    focusGrid(0);
+  });
+
+  resultOverlay.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !resultOverlay.hidden) {
+      resultOverlay.hidden = true;
+      show('screen-dashboard');
+      focusGrid(0);
+    }
+  });
+
   /* ---------- auth guard ---------- */
   async function restoreSession() {
     if (!token) return false;
@@ -106,6 +270,10 @@
     document.getElementById('greeting').textContent = `Bienvenido, ${user.name}`;
     document.getElementById('disp-level').textContent = `Nivel ${user.level}`;
     document.getElementById('disp-points').textContent = `${user.points} XP`;
+
+    const usr = await api('GET', '/profile');
+    document.getElementById('disp-streak').textContent = `🔥 ${usr.current_streak || 0} días`;
+
     show('screen-dashboard');
     await loadExercises();
     setupFilters();
@@ -170,7 +338,7 @@
   /* ---------- profile ---------- */
   document.getElementById('btn-profile').addEventListener('click', async () => {
     try {
-      const user = currentUser || await api('GET', '/profile');
+      const user = currentUser ? await api('GET', '/profile') : currentUser;
       document.getElementById('prof-name').textContent = `👤 ${user.name}`;
       document.getElementById('prof-created').textContent = `Desde ${user.created_at?.slice(0, 10) || '-'}`;
       document.getElementById('prof-sex').value = user.sex;
@@ -236,44 +404,41 @@
     focusGrid(0);
   });
 
-  /* ---------- card delegation ---------- */
-  document.getElementById('grid').addEventListener('click', (e) => {
-    const card = e.target.closest('.card');
-    if (!card) return;
-    const id = parseInt(card.dataset.id);
-    const ex = allExercises.find(e => e.id === id);
-    if (ex) openModal(ex);
+  /* ---------- achievements ---------- */
+  document.getElementById('btn-achievements').addEventListener('click', async () => {
+    try {
+      const [all, earned] = await Promise.all([
+        api('GET', '/achievements'),
+        api('GET', '/achievements/mine'),
+      ]);
+      const earnedMap = {};
+      earned.forEach(e => { earnedMap[e.id] = e.earned_at; });
+
+      const grid = document.getElementById('achievements-grid');
+      grid.innerHTML = all.map(a => {
+        const earnedAt = earnedMap[a.id];
+        const cls = earnedAt ? 'earned' : 'locked';
+        const dateHtml = earnedAt ? `<span class="achievement-date">✓ ${earnedAt.slice(0, 10)}</span>` : '';
+        return `
+          <div class="achievement-card ${cls}">
+            <span class="achievement-icon">${a.icon}</span>
+            <span class="achievement-name">${a.name}</span>
+            <span class="achievement-desc">${a.description}</span>
+            ${dateHtml}
+          </div>
+        `;
+      }).join('');
+
+      show('screen-achievements');
+      document.getElementById('btn-achievements-back').focus();
+    } catch (err) {
+      console.error(err);
+    }
   });
 
-  /* ---------- exercise modal ---------- */
-  const overlay = document.getElementById('overlay');
-  const modalTitle = document.getElementById('modal-title');
-  const modalDesc = document.getElementById('modal-desc');
-  const modalDuration = document.getElementById('modal-duration');
-  const modalDifficulty = document.getElementById('modal-difficulty');
-  const modalPoints = document.getElementById('modal-points');
-  const modalStart = document.getElementById('modal-start');
-  const modalClose = document.getElementById('modal-close');
-
-  function openModal(ex) {
-    modalTitle.textContent = ex.name;
-    modalDesc.textContent = ex.description;
-    modalDuration.textContent = `⏱ ${ex.duration} min`;
-    modalDifficulty.textContent = `📊 ${diffLabels[ex.difficulty]}`;
-    modalPoints.textContent = `⭐ +${ex.points} XP`;
-    overlay.hidden = false;
-    modalStart.focus();
-  }
-
-  function closeModal() {
-    overlay.hidden = true;
-    focusGrid(focusIndex);
-  }
-
-  modalStart.addEventListener('click', closeModal);
-  modalClose.addEventListener('click', closeModal);
-  overlay.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeModal();
+  document.getElementById('btn-achievements-back').addEventListener('click', () => {
+    show('screen-dashboard');
+    focusGrid(0);
   });
 
   /* ---------- keyboard nav ---------- */
@@ -285,7 +450,7 @@
   }
 
   document.addEventListener('keydown', (e) => {
-    if (!overlay.hidden) return;
+    if (!overlay.hidden || !resultOverlay.hidden) return;
 
     const currentScreen = document.querySelector('.screen:not([hidden])');
     if (!currentScreen) return;

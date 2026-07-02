@@ -63,6 +63,7 @@
         <div class="player-stats">
           <span class="level" id="disp-level">Nivel 1</span>
           <span class="points" id="disp-points">0 XP</span>
+          <span class="stat" id="disp-streak">🔥 0 días</span>
         </div>
       </header>
 
@@ -78,6 +79,7 @@
       <nav class="grid" id="grid" role="navigation" aria-label="Entrenamientos"></nav>
 
       <div class="action-bar">
+        <button class="btn-secondary" id="btn-achievements" tabindex="0">Logros</button>
         <button class="btn-secondary" id="btn-profile" tabindex="0">Mi perfil</button>
         <button class="btn-secondary" id="btn-leaderboard" tabindex="0">Clasificación</button>
         <button class="btn-secondary" id="btn-logout" tabindex="0">Salir</button>
@@ -125,6 +127,15 @@
       </div>
     </section>
 
+    <!-- SCREEN: Achievements -->
+    <section id="screen-achievements" class="screen" hidden>
+      <div class="form-card form-card--wide">
+        <h1 class="title">Logros</h1>
+        <div id="achievements-grid" class="achievements-grid"></div>
+        <button class="btn-link" id="btn-achievements-back" tabindex="0">Volver</button>
+      </div>
+    </section>
+
     <!-- MODAL -->
     <div class="overlay" id="overlay" hidden>
       <div class="modal" role="dialog" aria-modal="true">
@@ -137,6 +148,29 @@
         </div>
         <button class="btn-primary" id="modal-start" tabindex="0">Comenzar</button>
         <button class="btn-secondary" id="modal-close" tabindex="0">Cerrar</button>
+      </div>
+    </div>
+
+    <!-- WORKOUT SCREEN -->
+    <section id="screen-workout" class="screen" hidden>
+      <div class="workout-card">
+        <span class="workout-icon" id="workout-icon">🏃</span>
+        <h2 class="workout-name" id="workout-name">Ejercicio</h2>
+        <p class="workout-hint" id="workout-hint">Realiza el ejercicio y presiona Completar cuando termines</p>
+        <div class="workout-timer" id="workout-timer">⏱ 0:00</div>
+        <button class="btn-primary btn-big" id="workout-complete" tabindex="0">✓ Completar</button>
+        <button class="btn-secondary" id="workout-cancel" tabindex="0">Cancelar</button>
+      </div>
+    </section>
+
+    <!-- RESULT OVERLAY -->
+    <div class="overlay" id="result-overlay" hidden>
+      <div class="modal result-card" role="dialog" aria-modal="true">
+        <h2 class="result-title">🎉 Ejercicio completado</h2>
+        <p class="result-points" id="result-points">+0 XP</p>
+        <p class="result-streak" id="result-streak">🔥 Rachas: 0 días</p>
+        <div id="result-achievements" class="result-achievements"></div>
+        <button class="btn-primary btn-big" id="result-ok" tabindex="0">Continuar</button>
       </div>
     </div>
 

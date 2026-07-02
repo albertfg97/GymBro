@@ -18,7 +18,7 @@ function auth(req, res, next) {
 }
 
 router.get('/', auth, (req, res) => {
-  const user = db.prepare('SELECT id, name, sex, height, weight, goal, points, level, created_at FROM users WHERE id = ?').get(req.user.id);
+  const user = db.prepare('SELECT id, name, sex, height, weight, goal, points, level, current_streak, max_streak, last_workout_date, created_at FROM users WHERE id = ?').get(req.user.id);
   if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
   res.json(user);
 });
@@ -33,7 +33,7 @@ router.put('/', auth, (req, res) => {
   db.prepare('UPDATE users SET sex = ?, height = ?, weight = ?, goal = ? WHERE id = ?')
     .run(sex, height, weight, goal, req.user.id);
 
-  const user = db.prepare('SELECT id, name, sex, height, weight, goal, points, level, created_at FROM users WHERE id = ?').get(req.user.id);
+  const user = db.prepare('SELECT id, name, sex, height, weight, goal, points, level, current_streak, max_streak, last_workout_date, created_at FROM users WHERE id = ?').get(req.user.id);
   res.json(user);
 });
 
