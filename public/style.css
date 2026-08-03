@@ -883,6 +883,94 @@ select option {
   font-weight: 700;
 }
 
+/* -------- Guía del entrenador (modal) ---------- */
+.modal-guide {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 1rem 1.2rem;
+}
+
+.modal-guide-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-guide-steps {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.95rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  color: var(--text);
+}
+
+.modal-guide-watch {
+  font-size: 0.85rem;
+}
+
+.watch-label {
+  color: #f39c12;
+}
+
+.btn-listening {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+/* -------- Coach (pantalla de entrenamiento) ---------- */
+.workout-coach {
+  background: var(--bg);
+  border-radius: 14px;
+  padding: 1rem 1.4rem;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.coach-progress {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: center;
+}
+
+.coach-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+}
+
+.coach-dot.active {
+  background: var(--primary);
+  transform: scale(1.2);
+}
+
+.coach-line {
+  font-size: 1.25rem;
+  font-weight: 600;
+  min-height: 3rem;
+}
+
+.coach-controls {
+  display: flex;
+  justify-content: center;
+  gap: 0.6rem;
+}
+
+/* Atenuación del seguimiento en el header */
+.player-stats .points,
+.player-stats .stat {
+  display: none;
+}
+
 /* -------- Responsive ---------- */
 @media (max-width: 900px) {
   body {

@@ -55,6 +55,50 @@
 
   const diffLabels = { beginner: 'Principiante', intermediate: 'Intermedio', advanced: 'Avanzado' };
 
+  /* ---------- voice (entrenador) ---------- */
+  const Voice = (() => {
+    let esVoice = null;
+
+    function init() {
+      if (!('speechSynthesis' in window)) return;
+      const pick = () => {
+        const voices = window.speechSynthesis.getVoices();
+        esVoice = voices.find(v => /es(-|_)?(ES|MX|AR|CL|419)/i.test(v.lang)) ||
+          voices.find(v => /^es/i.test(v.lang)) || null;
+      };
+      pick();
+      window.speechSynthesis.onvoiceschanged = pick;
+    }
+
+    function speak(text, { rate = 1, onend } = {}) {
+      if (!('speechSynthesis' in window)) {
+        if (onend) onend();
+        return;
+      }
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'es-ES';
+      u.rate = rate;
+      if (esVoice) u.voice = esVoice;
+      if (onend) u.onend = onend;
+      window.speechSynthesis.speak(u);
+    }
+
+    function stop() {
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    }
+
+    return { init, speak, stop };
+  })();
+  Voice.init();
+
+  /* ---------- guía de ejercicio ---------- */
+  function parseGuide(raw) {
+    if (!raw) return null;
+    if (typeof raw === 'object') return raw;
+    try { return JSON.parse(raw); } catch { return null; }
+  }
+
   /* ---------- exercises ---------- */
   function renderGrid(filter) {
     const grid = document.getElementById('grid');
@@ -90,7 +134,6 @@
           <span class="card-meta">
             <span>⏱ ${item.duration} min</span>
             <span class="diff-${item.difficulty}">${diffLabels[item.difficulty]}</span>
-            <span>+${item.points} XP</span>
           </span>
         </button>`;
     }).join('');
@@ -155,6 +198,21 @@
   const modalPoints = document.getElementById('modal-points');
   const modalStart = document.getElementById('modal-start');
   const modalClose = document.getElementById('modal-close');
+  const modalGuide = document.getElementById('modal-guide');
+  const modalGuideSteps = document.getElementById('modal-guide-steps');
+  const modalGuideWatch = document.getElementById('modal-guide-watch');
+  const modalGuideListen = document.getElementById('modal-guide-listen');
+
+  function renderGuideIntoModal(guide) {
+    if (!guide) {
+      modalGuide.hidden = true;
+      return;
+    }
+    modalGuideSteps.innerHTML = (guide.steps || []).map(s => `<li>${s}</li>`).join('');
+    modalGuideWatch.innerHTML = (guide.watch || []).length
+      ? `<span class="watch-label">⚠ ${guide.watch.join(' · ')}</span>` : '';
+    modalGuide.hidden = false;
+  }
 
   function openExerciseModal(ex) {
     activeExercise = ex;
@@ -163,14 +221,17 @@
     modalDuration.textContent = `⏱ ${ex.duration} min`;
     modalDifficulty.textContent = `📊 ${diffLabels[ex.difficulty]}`;
     modalPoints.textContent = `⭐ +${ex.points} XP`;
+    renderGuideIntoModal(parseGuide(ex.guide));
     overlay.hidden = false;
     modalStart.focus();
   }
 
   function closeModal() {
     overlay.hidden = true;
+    Voice.stop();
     activeExercise = null;
     activeRoutine = null;
+    modalStart.textContent = 'Comenzar';
     focusGrid(focusIndex);
   }
 
@@ -179,11 +240,19 @@
     if (e.key === 'Escape') closeModal();
   });
 
+  modalGuideListen.addEventListener('click', () => {
+    const guide = parseGuide(activeExercise ? activeExercise.guide : null);
+    if (!guide) return;
+    const text = [guide.coach, ...(guide.steps || []), ...(guide.watch || [])].join('. ');
+    Voice.speak(text);
+  });
+
   /* ---------- routine modal ---------- */
   async function openRoutineModal(routine) {
     try {
       const detail = await api('GET', `/routines/${routine.id}`);
       activeRoutine = detail;
+      modalGuide.hidden = true;
       modalTitle.textContent = detail.name;
       modalDesc.textContent = detail.description;
       modalDuration.textContent = `📋 ${detail.exercises.length} ejercicios`;
@@ -234,6 +303,37 @@
   const repsCount = document.getElementById('workout-reps');
   const repsWeight = document.getElementById('workout-weight');
 
+  const coachBox = document.getElementById('workout-coach');
+  const coachProgress = document.getElementById('coach-progress');
+  const coachLine = document.getElementById('coach-line');
+  const coachPrev = document.getElementById('coach-prev');
+  const coachNext = document.getElementById('coach-next');
+  const coachListen = document.getElementById('coach-listen');
+  let coachSteps = [];
+  let coachIndex = 0;
+
+  function renderCoach() {
+    if (!coachSteps.length) {
+      coachBox.hidden = true;
+      return;
+    }
+    coachBox.hidden = false;
+    const total = coachSteps.length;
+    const n = Math.min(coachIndex, total - 1);
+    coachLine.textContent = coachSteps[n];
+    coachProgress.innerHTML = coachSteps.map((_, i) =>
+      `<span class="coach-dot ${i === n ? 'active' : ''}"></span>`
+    ).join('');
+    coachPrev.disabled = n === 0;
+    coachNext.disabled = n === total - 1;
+  }
+
+  function speakCoachStep() {
+    if (!coachSteps.length) return;
+    const n = Math.min(coachIndex, coachSteps.length - 1);
+    Voice.speak(coachSteps[n]);
+  }
+
   function startWorkout(ex, isRoutine) {
     activeExercise = ex;
     workoutIcon.textContent = ex.icon;
@@ -249,6 +349,15 @@
     repsSets.value = '';
     repsCount.value = '';
     repsWeight.value = '';
+
+    const guide = parseGuide(ex.guide);
+    coachSteps = guide && Array.isArray(guide.steps) ? guide.steps.slice() : [];
+    coachIndex = 0;
+    renderCoach();
+    if (coachSteps.length) {
+      Voice.speak([guide.coach, coachSteps[0]].filter(Boolean).join('. '));
+    }
+
     show('screen-workout');
     workoutComplete.focus();
 
@@ -275,6 +384,7 @@
   workoutComplete.addEventListener('click', async () => {
     if (!activeExercise) return;
     stopTimer();
+    Voice.stop();
 
     const actualDuration = Math.max(1, Math.round(timerSeconds / 60));
     const isRoutine = activeRoutine !== null;
@@ -328,10 +438,26 @@
 
   workoutCancel.addEventListener('click', () => {
     stopTimer();
+    Voice.stop();
     activeExercise = null;
     activeRoutine = null;
     show('screen-dashboard');
     focusGrid(0);
+  });
+
+  coachPrev.addEventListener('click', () => {
+    if (coachIndex > 0) { coachIndex--; renderCoach(); speakCoachStep(); }
+  });
+
+  coachNext.addEventListener('click', () => {
+    if (coachIndex < coachSteps.length - 1) { coachIndex++; renderCoach(); speakCoachStep(); }
+  });
+
+  coachListen.addEventListener('click', () => {
+    if (!coachSteps.length) return;
+    const guide = parseGuide(activeExercise ? activeExercise.guide : null);
+    const text = [guide && guide.coach, coachSteps[Math.min(coachIndex, coachSteps.length - 1)]].filter(Boolean).join('. ');
+    Voice.speak(text);
   });
 
   /* ---------- result ---------- */

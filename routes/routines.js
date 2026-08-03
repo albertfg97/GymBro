@@ -3,6 +3,13 @@ const db = require('../db');
 
 const router = Router();
 
+function withGuide(e) {
+  if (e && e.guide) {
+    try { e.guide = JSON.parse(e.guide); } catch { e.guide = null; }
+  }
+  return e;
+}
+
 router.get('/', (req, res) => {
   const rows = db.prepare('SELECT * FROM routines ORDER BY difficulty, name').all();
   const withStats = rows.map(r => {
@@ -29,7 +36,7 @@ router.get('/:id', (req, res) => {
     ORDER BY re.sort_order
   `).all(req.params.id);
 
-  res.json({ ...routine, exercises });
+  res.json({ ...routine, exercises: exercises.map(withGuide) });
 });
 
 module.exports = router;

@@ -1,6 +1,6 @@
 # GymBro — Documentación del Proyecto
 
-Gamificación del ejercicio físico para TV. Aplicación en vanilla JS/HTML/CSS con backend en Node.js + Express + SQLite (better-sqlite3). Orientada a navegación por teclado (foco/control remoto), pensada para pantallas de TV. Toda la interfaz está en español.
+**Entrenador personal** de ejercicio físico para TV. Aplicación en vanilla JS/HTML/CSS con backend en Node.js + Express + SQLite (better-sqlite3). Orientada a navegación por teclado (foco/control remoto) y a guiar al usuario **cómo** realizar cada ejercicio (pasos visuales + voz). Toda la interfaz está en español.
 
 ## Stack
 
@@ -12,20 +12,21 @@ Gamificación del ejercicio físico para TV. Aplicación en vanilla JS/HTML/CSS 
 
 ```
 server.js            Express: sirve estáticos y monta las rutas /api/*. Puerto 80. Exporta app (testable).
-db.js                Conexión SQLite, esquema de tablas y seed. La ruta se puede redefinir con GYMBRO_DB_PATH (tests).
+db.js                Conexión SQLite, esquema de tablas y seed. Ruta redefinible con GYMBRO_DB_PATH (tests).
+data/guides.js       Contenido pedagógico del entrenador por ejercicio (steps, watch, coach).
 routes/
   auth.js            Registro y login con bcrypt + JWT (30 días). Valida los campos.
   profile.js         Perfil, historial, estadísticas. Auth. (Se eliminó el vulnerable POST /points).
   leaderboard.js     Ranking por XP.
-  exercises.js       30 ejercicios seed en 6 categorías + filtros. Incluye el campo `unit`.
+  exercises.js       30 ejercicios seed en 6 categorías + filtros. Devuelve `unit` y `guide` (objeto).
   workouts.js        Registrar sesión, sumar XP/nivel, rachas (streak), evaluar logros. Guarda sets/reps/peso.
   achievements.js    Listado de logros y logros del usuario actual.
-  routines.js        6 rutinas seed con ejercicios ordenados.
+  routines.js        6 rutinas seed con ejercicios ordenados (incluye `guide` por ejercicio).
   social.js          Amistades (solicitud mutua) y desafíos entre amigos.
   validation.js      Validación de entrada compartida (registro y perfil).
 public/
-  index.html         Pantallas: login, registro, dashboard, perfil, clasificación, logros, historial, social, modal y workout.
-  app.js             Lógica SPA: navegación, flujo de workout, cronómetro, logros, social, navegación por teclado.
+  index.html         Pantallas: login, registro, dashboard, perfil, clasificación, logros, historial, social, modal con guía, workout guiado, resultado.
+  app.js             Lógica SPA: navegación, flujo de workout guiado (pasos + voz), cronómetro, logros, social.
   style.css          Tema oscuro con foco dorado, layout para TV + media queries responsive.
 test/                Suites con node --test + supertest (usan una DB temporal aislada).
 eslint.config.js     Config ESLint flat (node/browser).
@@ -36,7 +37,7 @@ data/gymbro.db       Base de datos SQLite (persistida vía volumen Docker; ignor
 ## Modelo de datos
 
 - **users**: id, name (único), password (hash), sex, height, weight, goal, points, level, created_at + columnas de racha (current_streak, last_workout_date, max_streak).
-- **exercises**: id, name, description, icon, duration, difficulty (beginner/intermediate/advanced), category, `unit` (duration/reps), points.
+- **exercises**: id, name, description, icon, duration, difficulty (beginner/intermediate/advanced), category, `unit` (duration/reps), points, `guide` (JSON pedagógico).
 - **achievements**: logros con `criteria_type` (total_sessions, total_points, streak_days, category_count) y `criteria_value`.
 - **user_achievements**: logros ganados por usuario.
 - **workout_sessions**: registro de cada ejercicio completado (points, duration, sets, reps, weight_kg, completed_at).
@@ -65,6 +66,17 @@ data/gymbro.db       Base de datos SQLite (persistida vía volumen Docker; ignor
 - **Racha (streak)**: días seguidos entrenando (el mismo día no acumula; el día siguiente suma; si se pierde un día se reinicia a 1).
 - **Logros**: se evalúan al completar cada ejercicio; los nuevos se muestran en la pantalla de resultado.
 - **Categorías**: cardio, fuerza (strength), yoga, HIIT, baile (dance), meditación.
+
+## Modo entrenador personal
+
+El foco de la UI está en **guiar** al usuario, no en el seguimiento:
+
+- **Contenido**: `data/guides.js` define por ejercicio una guía con `steps` (pasos), `watch` (errores comunes) y `coach` (mensaje motivador).
+- **Modal de ejercicio**: muestra los pasos y precauciones, con botón "🔊 Escuchar" que lee la guía completa en voz alta.
+- **Pantalla de entrenamiento**: bloque *coach* con el paso actual en grande, puntos de progreso, botones "◀ Anterior / 🔊 / Siguiente ▶", y lectura automática del paso al entrar y al navegar.
+- **Voz**: Web Speech API (`SpeechSynthesisUtterance`) en español (busca voz es-ES/MX/AR). Se detiene al completar o cancelar.
+- **Rutinas**: cada ejercicio de una rutina pasa por el mismo flujo guiado.
+- **Seguimiento atenuado**: se ocultan XP/racha del header del dashboard y el badge de puntos de las tarjetas (los datos se siguen guardando).
 
 ## Flujo principal
 

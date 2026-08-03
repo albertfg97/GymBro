@@ -1,5 +1,6 @@
 const Database = require('better-sqlite3');
 const path = require('path');
+const GUIDES = require('./data/guides');
 
 const DB_PATH = process.env.GYMBRO_DB_PATH || path.join(__dirname, 'data', 'gymbro.db');
 
@@ -33,6 +34,7 @@ db.exec(`
     category    TEXT    NOT NULL,
     unit        TEXT    NOT NULL DEFAULT 'duration' CHECK(unit IN ('duration','reps')),
     points      INTEGER NOT NULL DEFAULT 50,
+    guide       TEXT,
     created_at  TEXT    DEFAULT (datetime('now'))
   )
 `);
@@ -40,7 +42,7 @@ db.exec(`
 const count = db.prepare('SELECT COUNT(*) AS n FROM exercises').get();
 if (count.n === 0) {
   const insert = db.prepare(
-    'INSERT INTO exercises (name, description, icon, duration, difficulty, category, points) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO exercises (name, description, icon, duration, difficulty, category, points, guide) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
   );
   const seeds = [
     ['Caminata rápida',  'Camina a ritmo ligero manteniendo la espalda recta.',       '🚶', 20, 'beginner',    'cardio',     60],
@@ -80,7 +82,10 @@ if (count.n === 0) {
     ['Respiración fuego','Inhalaciones y exhalaciones rápidas y rítmicas.',           '🔥', 3,  'advanced',   'meditation',40],
   ];
   const tx = db.transaction(() => {
-    for (const s of seeds) insert.run(...s);
+    seeds.forEach((s, i) => {
+      const guide = GUIDES[i + 1] ? JSON.stringify(GUIDES[i + 1]) : null;
+      insert.run(...s, guide);
+    });
   });
   tx();
 }
@@ -136,8 +141,14 @@ db.exec(`
   const names = cols.map(c => c.name);
   if (!names.includes('unit'))
     db.exec("ALTER TABLE exercises ADD COLUMN unit TEXT NOT NULL DEFAULT 'duration'");
+  if (!names.includes('guide'))
+    db.exec('ALTER TABLE exercises ADD COLUMN guide TEXT');
   db.prepare("UPDATE exercises SET unit = 'reps' WHERE id IN (6,7,8,9,10,17,18,19)")
     .run();
+  const upd = db.prepare('UPDATE exercises SET guide = ? WHERE id = ? AND (guide IS NULL OR guide = ?)');
+  for (const [id, g] of Object.entries(GUIDES)) {
+    upd.run(JSON.stringify(g), id, '');
+  }
 })();
 
 (function () {

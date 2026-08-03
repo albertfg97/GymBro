@@ -211,6 +211,14 @@
           <span id="modal-difficulty">📊 Principiante</span>
           <span id="modal-points">⭐ +0 XP</span>
         </div>
+        <div class="modal-guide" id="modal-guide" hidden>
+          <div class="modal-guide-head">
+            <span id="modal-guide-title">Cómo se hace</span>
+            <button class="btn-link btn-listening" id="modal-guide-listen" tabindex="0">🔊 Escuchar</button>
+          </div>
+          <ol class="modal-guide-steps" id="modal-guide-steps"></ol>
+          <div class="modal-guide-watch" id="modal-guide-watch"></div>
+        </div>
         <button class="btn-primary" id="modal-start" tabindex="0">Comenzar</button>
         <button class="btn-secondary" id="modal-close" tabindex="0">Cerrar</button>
       </div>
@@ -221,6 +229,15 @@
       <div class="workout-card">
         <span class="workout-icon" id="workout-icon">🏃</span>
         <h2 class="workout-name" id="workout-name">Ejercicio</h2>
+        <div class="workout-coach" id="workout-coach" hidden>
+          <div class="coach-progress" id="coach-progress"></div>
+          <p class="coach-line" id="coach-line">Sigue estos pasos.</p>
+          <div class="coach-controls">
+            <button class="btn-secondary" id="coach-prev" tabindex="0">◀ Anterior</button>
+            <button class="btn-secondary btn-listening" id="coach-listen" tabindex="0">🔊</button>
+            <button class="btn-secondary" id="coach-next" tabindex="0">Siguiente ▶</button>
+          </div>
+        </div>
         <p class="workout-hint" id="workout-hint">Realiza el ejercicio y presiona Completar cuando termines</p>
         <div class="workout-timer" id="workout-timer">⏱ 0:00</div>
         <div class="workout-reps-panel" id="workout-reps-panel" hidden>
