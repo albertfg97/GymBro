@@ -2,16 +2,20 @@ const { Router } = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../db');
+const { validateRegister } = require('./validation');
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'gymbro-dev-secret';
 
 router.post('/register', (req, res) => {
-  const { name, password, sex, height, weight, goal } = req.body;
+  const { password, sex, height, weight, goal } = req.body;
 
-  if (!name || !password || !sex || !height || !weight || !goal) {
-    return res.status(400).json({ error: 'Todos los campos son obligatorios' });
+  const errors = validateRegister(req.body);
+  if (Object.keys(errors).length > 0) {
+    return res.status(400).json({ error: Object.values(errors)[0] });
   }
+
+  const name = req.body.name.trim();
 
   const exists = db.prepare('SELECT id FROM users WHERE name = ?').get(name);
   if (exists) {

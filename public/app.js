@@ -229,6 +229,10 @@
   const workoutHint = document.getElementById('workout-hint');
   const workoutComplete = document.getElementById('workout-complete');
   const workoutCancel = document.getElementById('workout-cancel');
+  const repsPanel = document.getElementById('workout-reps-panel');
+  const repsSets = document.getElementById('workout-sets');
+  const repsCount = document.getElementById('workout-reps');
+  const repsWeight = document.getElementById('workout-weight');
 
   function startWorkout(ex, isRoutine) {
     activeExercise = ex;
@@ -239,6 +243,12 @@
       : 'Realiza el ejercicio y presiona Completar cuando termines';
     timerSeconds = 0;
     updateTimerDisplay();
+
+    const showReps = ex.unit === 'reps';
+    repsPanel.hidden = !showReps;
+    repsSets.value = '';
+    repsCount.value = '';
+    repsWeight.value = '';
     show('screen-workout');
     workoutComplete.focus();
 
@@ -270,10 +280,19 @@
     const isRoutine = activeRoutine !== null;
 
     try {
-      const result = await api('POST', '/workouts/complete', {
+      const payload = {
         exerciseId: activeExercise.id,
         duration: actualDuration,
-      });
+      };
+      if (activeExercise.unit === 'reps') {
+        const setCount = parseInt(repsSets.value, 10);
+        const repCount = parseInt(repsCount.value, 10);
+        const weightKg = parseFloat(repsWeight.value);
+        if (setCount > 0) payload.setCount = setCount;
+        if (repCount > 0) payload.repCount = repCount;
+        if (weightKg > 0) payload.weightKg = weightKg;
+      }
+      const result = await api('POST', '/workouts/complete', payload);
 
       document.getElementById('disp-points').textContent = `${result.totalPoints} XP`;
       document.getElementById('disp-level').textContent = `Nivel ${result.level}`;
@@ -571,10 +590,15 @@
       container.innerHTML = history.length
         ? history.map(h => {
             const date = h.completed_at ? h.completed_at.slice(0, 10) : '';
+            let detail = '';
+            if (h.reps) {
+              detail = `<span class="history-item-detail">${h.sets || 1}×${h.reps}${h.weight_kg ? ` · ${h.weight_kg} kg` : ''}</span>`;
+            }
             return `
               <div class="history-item">
                 <span class="history-item-icon">${h.icon}</span>
                 <span class="history-item-name">${h.name}</span>
+                ${detail}
                 <span class="history-item-points">+${h.points} XP</span>
                 <span class="history-item-date">${date}</span>
               </div>`;
@@ -627,6 +651,246 @@
     show('screen-dashboard');
     focusGrid(0);
   });
+
+  /* ---------- social ---------- */
+  let socialChTab = 'active';
+
+  const metricLabels = {
+    first_to_xp: 'Primero en X XP',
+    total_workouts: 'Más workouts',
+    best_streak: 'Mejor racha',
+  };
+
+  function socialError(err) {
+    showError('social-error', err.message || 'Error');
+  }
+
+  async function renderSocial() {
+    try {
+      const [requests, friends, challenges] = await Promise.all([
+        api('GET', '/social/friends/requests'),
+        api('GET', '/social/friends'),
+        api('GET', '/social/challenges'),
+      ]);
+      renderSocialRequests(requests);
+      renderSocialFriends(friends);
+      renderChallengeSelectOptions(friends);
+      renderChallenges(challenges);
+      show('screen-social');
+      document.getElementById('social-search').focus();
+    } catch (err) {
+      socialError(err);
+    }
+  }
+
+  function renderSocialRequests(list) {
+    const box = document.getElementById('social-requests');
+    if (!list.length) {
+      box.innerHTML = '<p class="social-empty">Sin solicitudes pendientes.</p>';
+      return;
+    }
+    box.innerHTML = list.map(r => `
+      <div class="social-item">
+        <span class="social-item-name">${r.name}</span>
+        <button class="btn-primary" data-respond="${r.request_id}" data-action="accept" tabindex="0">Aceptar</button>
+        <button class="btn-secondary" data-respond="${r.request_id}" data-action="decline" tabindex="0">Rechazar</button>
+      </div>`).join('');
+  }
+
+  function renderSocialFriends(list) {
+    const box = document.getElementById('social-friends');
+    if (!list.length) {
+      box.innerHTML = `<p class="social-empty">Aún no tienes amigos.</p>`;
+      return;
+    }
+    box.innerHTML = list.map(f => `
+      <div class="social-item">
+        <span class="social-item-name" data-view-friend="${f.friend_id}" tabindex="0">${f.name}</span>
+        <span class="social-item-meta">Nv ${f.level} · ${f.points} XP</span>
+        <button class="btn-secondary" data-unfriend="${f.friend_id}" tabindex="0">Eliminar</button>
+      </div>`).join('');
+  }
+
+  function renderChallengeSelectOptions(friends) {
+    const sel = document.getElementById('social-challenge-friend');
+    sel.innerHTML = friends.length
+      ? friends.map(f => `<option value="${f.friend_id}">${f.name}</option>`).join('')
+      : '<option value="">Sin amigos</option>';
+  }
+
+  function renderChallenges(list) {
+    const filtered = list.filter(c => {
+      if (socialChTab === 'completed') return c.status === 'completed';
+      if (socialChTab === 'pending') return c.status === 'pending' || c.status === 'declined';
+      return c.status === 'active';
+    });
+    const box = document.getElementById('social-challenges');
+    if (!filtered.length) {
+      box.innerHTML = `<p class="social-empty">Sin desafíos en esta vista.</p>`;
+      return;
+    }
+    box.innerHTML = filtered.map(c => {
+      const opp = c.status === 'completed' ? (c.winner_id === c.challenger.id ? c.challenger : c.opponent) : null;
+      const a = c.progress[c.challenger.id] || { value: 0 };
+      const b = c.progress[c.opponent.id] || { value: 0 };
+      const header = `${c.challenger.name} vs ${c.opponent.name} · ${metricLabels[c.metric]}${c.target ? ` · ${c.target} XP` : ''}`;
+      let body = '';
+
+      if (c.status === 'pending') {
+        body = `
+          <div class="social-ch-body">
+            <span>Te ha retado ${c.challenger.name}</span>
+            <button class="btn-primary" data-ch-respond="${c.id}" data-action="accept" tabindex="0">Aceptar</button>
+            <button class="btn-secondary" data-ch-respond="${c.id}" data-action="decline" tabindex="0">Rechazar</button>
+          </div>`;
+      } else if (c.status === 'active') {
+        body = `
+          <div class="social-ch-body">
+            <div class="progress-row"><span>${c.challenger.name}</span><span>${a.value}${c.metric === 'first_to_xp' ? ` / ${c.target} XP` : ''}</span></div>
+            <div class="progress-row"><span>${c.opponent.name}</span><span>${b.value}${c.metric === 'first_to_xp' ? ` / ${c.target} XP` : ''}</span></div>
+          </div>`;
+      } else if (c.status === 'completed') {
+        body = `<div class="social-ch-body"><span class="winner-badge">🏆 Gana: ${opp ? opp.name : 'Empate'}</span></div>`;
+      } else {
+        body = `<div class="social-ch-body"><span>Rechazado</span></div>`;
+      }
+
+      return `<div class="social-item social-challenge">
+        <span class="social-item-name">${header}</span>
+        ${body}
+      </div>`;
+    }).join('');
+  }
+
+  function renderUserProfile(user) {
+    const box = document.getElementById('social-search-results');
+    box.innerHTML = `
+      <div class="public-profile">
+        <h3>${user.name}</h3>
+        <p>Nivel ${user.level} · ${user.points} XP</p>
+        ${user.goal ? `<p>Objetivo: ${user.goal.replace('_', ' ')}</p>` : ''}
+        ${user.sex ? `<p>Sexo: ${user.sex}</p>` : ''}
+        ${user.total_workouts !== undefined ? `<p>Entrenos: ${user.total_workouts} · ${user.total_minutes} min · ${user.total_xp} XP</p>` : ''}
+        ${user.current_streak !== undefined ? `<p>🔥 Racha actual: ${user.current_streak || 0} días</p>` : ''}
+      </div>`;
+  }
+
+  document.getElementById('btn-social').addEventListener('click', () => {
+    renderSocial();
+  });
+
+  document.getElementById('btn-social-back').addEventListener('click', () => {
+    show('screen-dashboard');
+    focusGrid(0);
+  });
+
+  document.getElementById('social-search-btn').addEventListener('click', async () => {
+    const q = document.getElementById('social-search').value.trim();
+    if (!q) return;
+    try {
+      const results = await api('GET', `/social/users/search?q=${encodeURIComponent(q)}`);
+      const box = document.getElementById('social-search-results');
+      if (!results.length) {
+        box.innerHTML = `<p class="social-empty">Sin resultados.</p>`;
+        return;
+      }
+      box.innerHTML = results.map(u => `
+        <div class="social-item">
+          <span class="social-item-name">${u.name}</span>
+          <span class="social-item-meta">Nv ${u.level} · ${u.points} XP</span>
+          <button class="btn-primary" data-add-friend="${u.id}" tabindex="0">Agregar</button>
+        </div>`).join('');
+    } catch (err) {
+      socialError(err);
+    }
+  });
+
+  document.addEventListener('click', async (e) => {
+    const addBtn = e.target.closest('[data-add-friend]');
+    if (addBtn) {
+      try {
+        await api('POST', `/social/friends/${addBtn.dataset.addFriend}`);
+        await renderSocial();
+      } catch (err) {
+        socialError(err);
+      }
+    }
+
+    const resp = e.target.closest('[data-respond]');
+    if (resp) {
+      try {
+        await api('POST', `/social/friends/requests/${resp.dataset.respond}/respond`, { action: resp.dataset.action });
+        await renderSocial();
+      } catch (err) {
+        socialError(err);
+      }
+    }
+
+    const unfriend = e.target.closest('[data-unfriend]');
+    if (unfriend) {
+      try {
+        await api('DELETE', `/social/friends/${unfriend.dataset.unfriend}`);
+        await renderSocial();
+      } catch (err) {
+        socialError(err);
+      }
+    }
+
+    const viewFriend = e.target.closest('[data-view-friend]');
+    if (viewFriend) {
+      try {
+        const profile = await api('GET', `/social/users/${viewFriend.dataset.viewFriend}`);
+        renderUserProfile(profile);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (err) {
+        socialError(err);
+      }
+    }
+
+    const chResp = e.target.closest('[data-ch-respond]');
+    if (chResp) {
+      try {
+        await api('POST', `/social/challenges/${chResp.dataset.chRespond}/respond`, { action: chResp.dataset.action });
+        await renderSocial();
+      } catch (err) {
+        socialError(err);
+      }
+    }
+  });
+
+  document.getElementById('social-challenge-send').addEventListener('click', async () => {
+    const opponentId = document.getElementById('social-challenge-friend').value;
+    const metric = document.getElementById('social-challenge-metric').value;
+    const target = parseInt(document.getElementById('social-challenge-target').value, 10);
+    const durationDays = parseInt(document.getElementById('social-challenge-days').value, 10) || 7;
+    if (!opponentId) return socialError(new Error('Elige un amigo'));
+    if (metric === 'first_to_xp' && (!target || target <= 0)) return socialError(new Error('Indica el XP objetivo'));
+
+    try {
+      await api('POST', '/social/challenges', { opponentId, metric, target, durationDays });
+      await renderSocial();
+    } catch (err) {
+      socialError(err);
+    }
+  });
+
+  document.querySelector('.social-tabs').addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn-filter');
+    if (!btn) return;
+    document.querySelectorAll('.social-tabs .btn-filter').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    socialChTab = btn.dataset.chTab;
+    renderChallengesFromServer();
+  });
+
+  async function renderChallengesFromServer() {
+    try {
+      const list = await api('GET', '/social/challenges');
+      renderChallenges(list);
+    } catch (err) {
+      socialError(err);
+    }
+  }
 
   /* ---------- keyboard nav ---------- */
   function focusGrid(idx) {

@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const jwt = require('jsonwebtoken');
 const db = require('../db');
+const { validateProfileUpdate } = require('./validation');
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'gymbro-dev-secret';
@@ -26,8 +27,9 @@ router.get('/', auth, (req, res) => {
 router.put('/', auth, (req, res) => {
   const { sex, height, weight, goal } = req.body;
 
-  if (!sex || !height || !weight || !goal) {
-    return res.status(400).json({ error: 'Faltan campos' });
+  const errors = validateProfileUpdate(req.body);
+  if (Object.keys(errors).length > 0) {
+    return res.status(400).json({ error: Object.values(errors)[0] });
   }
 
   db.prepare('UPDATE users SET sex = ?, height = ?, weight = ?, goal = ? WHERE id = ?')
@@ -41,7 +43,7 @@ router.get('/history', auth, (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 50, 200);
 
   const rows = db.prepare(`
-    SELECT ws.id, ws.points, ws.duration, ws.completed_at,
+    SELECT ws.id, ws.points, ws.duration, ws.sets, ws.reps, ws.weight_kg, ws.completed_at,
            e.id AS exercise_id, e.name, e.icon, e.category, e.difficulty
     FROM workout_sessions ws
     JOIN exercises e ON e.id = ws.exercise_id
@@ -66,19 +68,6 @@ router.get('/stats', auth, (req, res) => {
   const user = db.prepare('SELECT current_streak, max_streak, points, level FROM users WHERE id = ?').get(req.user.id);
 
   res.json({ ...stats, ...user });
-});
-
-router.post('/points', auth, (req, res) => {
-  const { points } = req.body;
-  if (!points || points < 0) return res.status(400).json({ error: 'Puntos inválidos' });
-
-  const user = db.prepare('SELECT points, level FROM users WHERE id = ?').get(req.user.id);
-  const newPoints = user.points + points;
-  const newLevel = Math.floor(newPoints / 1000) + 1;
-
-  db.prepare('UPDATE users SET points = ?, level = ? WHERE id = ?').run(newPoints, newLevel, req.user.id);
-
-  res.json({ points: newPoints, level: newLevel });
 });
 
 module.exports = router;

@@ -70,7 +70,7 @@ function checkAchievements(userId) {
 }
 
 router.post('/complete', auth, (req, res) => {
-  const { exerciseId, duration } = req.body;
+  const { exerciseId, duration, setCount, repCount, weightKg } = req.body;
   if (!exerciseId || !duration) {
     return res.status(400).json({ error: 'exerciseId y duration requeridos' });
   }
@@ -80,8 +80,12 @@ router.post('/complete', auth, (req, res) => {
 
   const points = exercise.points;
 
-  db.prepare('INSERT INTO workout_sessions (user_id, exercise_id, points, duration) VALUES (?, ?, ?, ?)')
-    .run(req.user.id, exerciseId, points, duration);
+  const sets = Number.isInteger(setCount) && setCount > 0 ? setCount : null;
+  const reps = Number.isInteger(repCount) && repCount > 0 ? repCount : null;
+  const weight = typeof weightKg === 'number' && weightKg > 0 ? weightKg : null;
+
+  db.prepare('INSERT INTO workout_sessions (user_id, exercise_id, points, duration, sets, reps, weight_kg) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(req.user.id, exerciseId, points, duration, sets, reps, weight);
 
   const today = new Date().toISOString().slice(0, 10);
   const user = db.prepare('SELECT last_workout_date, current_streak, max_streak, points, level, name, sex, height, weight, goal, created_at FROM users WHERE id = ?').get(req.user.id);

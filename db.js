@@ -1,7 +1,7 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 
-const DB_PATH = path.join(__dirname, 'data', 'gymbro.db');
+const DB_PATH = process.env.GYMBRO_DB_PATH || path.join(__dirname, 'data', 'gymbro.db');
 
 const db = new Database(DB_PATH, { verbose: null });
 db.pragma('journal_mode = WAL');
@@ -31,6 +31,7 @@ db.exec(`
     duration    INTEGER NOT NULL DEFAULT 15,
     difficulty  TEXT    NOT NULL DEFAULT 'beginner' CHECK(difficulty IN ('beginner','intermediate','advanced')),
     category    TEXT    NOT NULL,
+    unit        TEXT    NOT NULL DEFAULT 'duration' CHECK(unit IN ('duration','reps')),
     points      INTEGER NOT NULL DEFAULT 50,
     created_at  TEXT    DEFAULT (datetime('now'))
   )
@@ -112,6 +113,9 @@ db.exec(`
     exercise_id INTEGER NOT NULL REFERENCES exercises(id),
     points      INTEGER NOT NULL,
     duration    INTEGER NOT NULL,
+    sets        INTEGER,
+    reps        INTEGER,
+    weight_kg   REAL,
     completed_at TEXT DEFAULT (datetime('now'))
   )
 `);
@@ -125,6 +129,26 @@ db.exec(`
     db.exec("ALTER TABLE users ADD COLUMN last_workout_date TEXT");
   if (!names.includes('max_streak'))
     db.exec("ALTER TABLE users ADD COLUMN max_streak INTEGER DEFAULT 0");
+})();
+
+(function () {
+  const cols = db.prepare("PRAGMA table_info('exercises')").all();
+  const names = cols.map(c => c.name);
+  if (!names.includes('unit'))
+    db.exec("ALTER TABLE exercises ADD COLUMN unit TEXT NOT NULL DEFAULT 'duration'");
+  db.prepare("UPDATE exercises SET unit = 'reps' WHERE id IN (6,7,8,9,10,17,18,19)")
+    .run();
+})();
+
+(function () {
+  const cols = db.prepare("PRAGMA table_info('workout_sessions')").all();
+  const names = cols.map(c => c.name);
+  if (!names.includes('sets'))
+    db.exec("ALTER TABLE workout_sessions ADD COLUMN sets INTEGER");
+  if (!names.includes('reps'))
+    db.exec("ALTER TABLE workout_sessions ADD COLUMN reps INTEGER");
+  if (!names.includes('weight_kg'))
+    db.exec("ALTER TABLE workout_sessions ADD COLUMN weight_kg REAL");
 })();
 
 const achCount = db.prepare('SELECT COUNT(*) AS n FROM achievements').get();
@@ -194,5 +218,32 @@ if (routineCount.n === 0) {
   });
   tx();
 }
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS friendships (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    requester_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    addressee_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status        TEXT    NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','accepted','declined')),
+    created_at    TEXT    DEFAULT (datetime('now')),
+    UNIQUE(requester_id, addressee_id)
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS challenges (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    challenger_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    opponent_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    metric        TEXT    NOT NULL CHECK(metric IN ('first_to_xp','total_workouts','best_streak')),
+    target        INTEGER,
+    duration_days INTEGER NOT NULL DEFAULT 7,
+    status        TEXT    NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','active','declined','completed')),
+    winner_id     INTEGER REFERENCES users(id),
+    starts_at     TEXT,
+    ends_at       TEXT,
+    created_at    TEXT    DEFAULT (datetime('now'))
+  )
+`);
 
 module.exports = db;

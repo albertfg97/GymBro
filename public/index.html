@@ -85,11 +85,61 @@
       <div class="action-bar">
         <button class="btn-secondary" id="btn-history" tabindex="0">Historial</button>
         <button class="btn-secondary" id="btn-achievements" tabindex="0">Logros</button>
+        <button class="btn-secondary" id="btn-social" tabindex="0">Social</button>
         <button class="btn-secondary" id="btn-profile" tabindex="0">Mi perfil</button>
         <button class="btn-secondary" id="btn-leaderboard" tabindex="0">Clasificación</button>
         <button class="btn-secondary" id="btn-logout" tabindex="0">Salir</button>
       </div>
     </div>
+
+    <!-- SCREEN: Social -->
+    <section id="screen-social" class="screen" hidden>
+      <div class="form-card form-card--wide social-card">
+        <h1 class="title">Social</h1>
+
+        <div class="social-section">
+          <div class="social-search">
+            <input type="text" id="social-search" placeholder="Buscar usuarios..." tabindex="0">
+            <button class="btn-primary" id="social-search-btn" tabindex="0">Buscar</button>
+          </div>
+          <div id="social-search-results" class="social-list"></div>
+        </div>
+
+        <div class="social-section">
+          <h3 class="social-heading">Solicitudes recibidas</h3>
+          <div id="social-requests" class="social-list"></div>
+        </div>
+
+        <div class="social-section">
+          <h3 class="social-heading">Amigos</h3>
+          <div id="social-friends" class="social-list"></div>
+        </div>
+
+        <div class="social-section">
+          <h3 class="social-heading">Desafíos</h3>
+          <div class="social-create">
+            <select id="social-challenge-friend" tabindex="0"></select>
+            <select id="social-challenge-metric" tabindex="0">
+              <option value="first_to_xp">Primero en llegar a X XP</option>
+              <option value="total_workouts">Más workouts en N días</option>
+              <option value="best_streak">Mejor racha en N días</option>
+            </select>
+            <input type="number" id="social-challenge-days" min="1" max="90" value="7" placeholder="Días" tabindex="0">
+            <input type="number" id="social-challenge-target" min="1" placeholder="XP objetivo" tabindex="0">
+            <button class="btn-primary" id="social-challenge-send" tabindex="0">Retar</button>
+          </div>
+          <div class="social-tabs">
+            <button class="btn-filter active" data-ch-tab="active" tabindex="0">Activos</button>
+            <button class="btn-filter" data-ch-tab="pending" tabindex="0">Pendientes</button>
+            <button class="btn-filter" data-ch-tab="completed" tabindex="0">Completados</button>
+          </div>
+          <div id="social-challenges" class="social-list"></div>
+        </div>
+
+        <button class="btn-link" id="btn-social-back" tabindex="0">Volver</button>
+        <p id="social-error" class="error" hidden></p>
+      </div>
+    </section>
 
     <!-- SCREEN: Profile -->
     <section id="screen-profile" class="screen" hidden>
@@ -173,6 +223,11 @@
         <h2 class="workout-name" id="workout-name">Ejercicio</h2>
         <p class="workout-hint" id="workout-hint">Realiza el ejercicio y presiona Completar cuando termines</p>
         <div class="workout-timer" id="workout-timer">⏱ 0:00</div>
+        <div class="workout-reps-panel" id="workout-reps-panel" hidden>
+          <label>Series <input type="number" id="workout-sets" min="1" max="99" placeholder="Series"></label>
+          <label>Reps <input type="number" id="workout-reps" min="1" max="999" placeholder="Repeticiones"></label>
+          <label>Peso <input type="number" id="workout-weight" min="0" step="0.5" placeholder="kg"></label>
+        </div>
         <button class="btn-primary btn-big" id="workout-complete" tabindex="0">✓ Completar</button>
         <button class="btn-secondary" id="workout-cancel" tabindex="0">Cancelar</button>
       </div>
