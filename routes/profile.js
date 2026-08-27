@@ -1,73 +1,79 @@
 const { Router } = require('express');
-const jwt = require('jsonwebtoken');
 const db = require('../db');
-const { validateProfileUpdate } = require('./validation');
+const { auth } = require('./middleware');
+const { normalizePlan } = require('../normalize');
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'gymbro-dev-secret';
+router.use(auth);
 
-function auth(req, res, next) {
-  const header = req.headers.authorization;
-  if (!header) return res.status(401).json({ error: 'Token requerido' });
+const GOALS = ['lose', 'maintain', 'gain'];
+const ACTIVITY = ['sedentary', 'light', 'active', 'very_active'];
+const SEX = ['male', 'female', 'other'];
 
-  try {
-    req.user = jwt.verify(header.replace('Bearer ', ''), JWT_SECRET);
-    next();
-  } catch {
-    res.status(401).json({ error: 'Token inválido' });
-  }
+function parseJson(str, fallback) {
+  if (str == null || str === '') return fallback;
+  try { return JSON.parse(str); } catch { return fallback; }
 }
 
-router.get('/', auth, (req, res) => {
-  const user = db.prepare('SELECT id, name, sex, height, weight, goal, points, level, current_streak, max_streak, last_workout_date, created_at FROM users WHERE id = ?').get(req.user.id);
-  if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
-  res.json(user);
+function publicUser(row) {
+  return {
+    id: row.id, name: row.name, role: row.role, sex: row.sex,
+    birth_year: row.birth_year, height_cm: row.height_cm, weight_kg: row.weight_kg,
+    goal: row.goal, activity_level: row.activity_level,
+    equipment: parseJson(row.equipment, {}), allergies: parseJson(row.allergies, []),
+    has_plan: !!row.plan, created_at: row.created_at,
+  };
+}
+
+router.get('/', (req, res) => {
+  const row = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  if (!row) return res.status(404).json({ error: 'Usuario no encontrado' });
+  res.json(publicUser(row));
 });
 
-router.put('/', auth, (req, res) => {
-  const { sex, height, weight, goal } = req.body;
+router.put('/', (req, res) => {
+  const b = req.body || {};
+  const goal = b.goal || 'maintain';
+  const activity_level = b.activity_level || 'light';
+  if (!GOALS.includes(goal)) return res.status(400).json({ error: 'Objetivo inválido' });
+  if (!ACTIVITY.includes(activity_level)) return res.status(400).json({ error: 'Nivel de actividad inválido' });
+  if (b.sex && !SEX.includes(b.sex)) return res.status(400).json({ error: 'Sexo inválido' });
 
-  const errors = validateProfileUpdate(req.body);
-  if (Object.keys(errors).length > 0) {
-    return res.status(400).json({ error: Object.values(errors)[0] });
+  db.prepare(
+    `UPDATE users SET sex = ?, birth_year = ?, height_cm = ?, weight_kg = ?, goal = ?, activity_level = ?, equipment = ?, allergies = ? WHERE id = ?`
+  ).run(
+    b.sex || 'other',
+    b.birth_year != null ? Number(b.birth_year) || null : null,
+    b.height_cm != null ? Number(b.height_cm) || null : null,
+    b.weight_kg != null ? Number(b.weight_kg) || null : null,
+    goal,
+    activity_level,
+    JSON.stringify(b.equipment != null ? b.equipment : {}),
+    JSON.stringify(b.allergies != null ? b.allergies : []),
+    req.user.id
+  );
+
+  const row = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  res.json(publicUser(row));
+});
+
+// GET /plan — devuelve el plan normalizado del perfil actual.
+router.get('/plan', (req, res) => {
+  const row = db.prepare('SELECT plan FROM users WHERE id = ?').get(req.user.id);
+  if (!row) return res.status(404).json({ error: 'Usuario no encontrado' });
+  const plan = row.plan ? JSON.parse(row.plan) : null;
+  res.json(plan ? plan : { rutina: null, alimentacion: null });
+});
+
+// PUT /plan — importar el plan JSON (rutina + alimentación). Se normaliza.
+router.put('/plan', (req, res) => {
+  const raw = req.body;
+  if (!raw || typeof raw !== 'object') {
+    return res.status(400).json({ error: 'El cuerpo debe ser un objeto JSON de plan' });
   }
-
-  db.prepare('UPDATE users SET sex = ?, height = ?, weight = ?, goal = ? WHERE id = ?')
-    .run(sex, height, weight, goal, req.user.id);
-
-  const user = db.prepare('SELECT id, name, sex, height, weight, goal, points, level, current_streak, max_streak, last_workout_date, created_at FROM users WHERE id = ?').get(req.user.id);
-  res.json(user);
-});
-
-router.get('/history', auth, (req, res) => {
-  const limit = Math.min(parseInt(req.query.limit) || 50, 200);
-
-  const rows = db.prepare(`
-    SELECT ws.id, ws.points, ws.duration, ws.sets, ws.reps, ws.weight_kg, ws.completed_at,
-           e.id AS exercise_id, e.name, e.icon, e.category, e.difficulty
-    FROM workout_sessions ws
-    JOIN exercises e ON e.id = ws.exercise_id
-    WHERE ws.user_id = ?
-    ORDER BY ws.completed_at DESC
-    LIMIT ?
-  `).all(req.user.id, limit);
-
-  res.json(rows);
-});
-
-router.get('/stats', auth, (req, res) => {
-  const stats = db.prepare(`
-    SELECT
-      COUNT(*)                                               AS total_workouts,
-      COALESCE(SUM(duration), 0)                             AS total_minutes,
-      COALESCE(SUM(ws.points), 0)                            AS total_xp,
-      (SELECT COUNT(DISTINCT DATE(completed_at))
-       FROM workout_sessions WHERE user_id = ?)              AS total_days
-  `).get(req.user.id, req.user.id);
-
-  const user = db.prepare('SELECT current_streak, max_streak, points, level FROM users WHERE id = ?').get(req.user.id);
-
-  res.json({ ...stats, ...user });
+  const normalized = normalizePlan(raw);
+  db.prepare('UPDATE users SET plan = ? WHERE id = ?').run(JSON.stringify(normalized), req.user.id);
+  res.json({ ok: true, plan: normalized });
 });
 
 module.exports = router;

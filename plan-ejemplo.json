@@ -1,0 +1,56 @@
+{
+  "rutina": {
+    "dias_semana": [
+      { "dia": "Lunes", "bloque": "A" },
+      { "dia": "Miércoles", "bloque": "B" },
+      { "dia": "Viernes", "bloque": "A" }
+    ],
+    "bloques": {
+      "A": [
+        { "ejercicio": "Sentadilla búlgara", "sets": 3, "reps": "8-12 por pierna", "descanso_s": 120 },
+        { "ejercicio": "Press de suelo", "sets": 3, "reps": "8-15", "descanso_s": 120 },
+        { "ejercicio": "Remo unilateral", "sets": 3, "reps": "10-15 por lado", "descanso_s": 90 },
+        { "ejercicio": "Elevaciones laterales", "sets": 3, "reps": "12-20", "descanso_s": 60 },
+        { "ejercicio": "Curl de bíceps", "sets": 2, "reps": "10-15", "descanso_s": 75 }
+      ],
+      "B": [
+        { "ejercicio": "Sentadilla goblet", "sets": 3, "reps": "10-15", "descanso_s": 120 },
+        { "ejercicio": "Press militar", "sets": 3, "reps": "8-15", "descanso_s": 120 },
+        { "ejercicio": "Remo con 2 mancuernas", "sets": 3, "reps": "10-15", "descanso_s": 90 },
+        { "ejercicio": "Hip thrust", "sets": 3, "reps": "10-20", "descanso_s": 90 },
+        { "ejercicio": "Curl martillo", "sets": 2, "reps": "10-15", "descanso_s": 75 }
+      ]
+    },
+    "config": {
+      "frecuencia": "3 días por semana",
+      "intensidad": "1-3 RIR",
+      "calentamiento": "5-8 minutos más 1-2 series ligeras"
+    }
+  },
+  "alimentacion": {
+    "calorias_objetivo_diarias_kcal": 2200,
+    "proteina_objetivo_diaria_g": "135-150",
+    "deficit_estimado_kcal": "200-300",
+    "ritmo_objetivo_perdida_peso_kg_semana": "0.2-0.4",
+    "principios": [
+      "Priorizar alimentos mínimamente procesados",
+      "Mantener proteína alta"
+    ],
+    "dieta_7_dias": [
+      {
+        "dia": 1, "etiqueta": "Lunes",
+        "desayuno": "60 g avena + 250 ml leche + 1 plátano + 2 huevos",
+        "comida": "150-180 g pollo + 80-90 g arroz + 200 g verduras + 10 g aceite de oliva",
+        "snack": "200-250 g yogur griego + fruta",
+        "cena": "200 g merluza + 350 g patata + ensalada + 15 g aceite de oliva",
+        "kcal": 2200, "proteina": 145
+      }
+    ],
+    "lista_compra_semanal": {
+      "proteinas": [ "1.2 kg pechuga de pollo", "18 huevos" ],
+      "carbohidratos": [ "500 g de avena", "500 g de arroz" ],
+      "verduras": [ "1.5-2 kg de verduras variadas" ],
+      "grasas": [ "Aceite de oliva virgen extra" ]
+    }
+  }
+}

@@ -13,11 +13,11 @@
     <section id="screen-login" class="screen">
       <div class="form-card">
         <h1 class="title">GymBro</h1>
-        <p class="subtitle">Gamifica tu ejercicio</p>
+        <p class="subtitle">Empezar</p>
         <form id="form-login" class="form">
-          <input type="text" id="login-name" placeholder="Usuario" required tabindex="0">
-          <input type="password" id="login-password" placeholder="Contraseña" required tabindex="0">
-          <button type="submit" class="btn-primary" tabindex="0">Entrar</button>
+          <input type="text" id="login-name" placeholder="Usuario" required tabindex="0" autocomplete="username">
+          <input type="password" id="login-password" placeholder="Contraseña" required tabindex="0" autocomplete="current-password">
+          <button type="submit" class="btn-primary btn-big" tabindex="0">Entrar</button>
         </form>
         <button class="btn-link" id="btn-show-register" tabindex="0">Crear cuenta</button>
         <p id="login-error" class="error" hidden></p>
@@ -31,20 +31,25 @@
         <form id="form-register" class="form form--grid">
           <input type="text" id="reg-name" placeholder="Usuario" required tabindex="0">
           <input type="password" id="reg-password" placeholder="Contraseña" required tabindex="0">
-          <select id="reg-sex" required tabindex="0">
+          <select id="reg-sex" tabindex="0">
             <option value="">Sexo</option>
             <option value="male">Hombre</option>
             <option value="female">Mujer</option>
             <option value="other">Otro</option>
           </select>
-          <input type="number" id="reg-height" placeholder="Altura (cm)" min="50" max="250" required tabindex="0">
-          <input type="number" id="reg-weight" placeholder="Peso (kg)" min="20" max="300" required tabindex="0">
-          <select id="reg-goal" required tabindex="0">
-            <option value="">Objetivo</option>
-            <option value="lose_weight">Perder peso</option>
-            <option value="gain_muscle">Ganar músculo</option>
-            <option value="endurance">Resistencia</option>
-            <option value="maintain">Mantenerme</option>
+          <input type="number" id="reg-birth" placeholder="Año nacimiento (1995)" min="1900" max="2100" tabindex="0">
+          <input type="number" id="reg-height" placeholder="Altura (cm)" min="50" max="250" tabindex="0">
+          <input type="number" id="reg-weight" placeholder="Peso (kg)" min="20" max="300" tabindex="0">
+          <select id="reg-goal" tabindex="0">
+            <option value="maintain">Objetivo: Mantener</option>
+            <option value="lose">Perder peso</option>
+            <option value="gain">Ganar músculo</option>
+          </select>
+          <select id="reg-activity" tabindex="0">
+            <option value="light">Nivel: Ligero</option>
+            <option value="sedentary">Sedentario</option>
+            <option value="active">Activo</option>
+            <option value="very_active">Muy activo</option>
           </select>
           <button type="submit" class="btn-primary" tabindex="0">Registrarse</button>
         </form>
@@ -53,198 +58,54 @@
       </div>
     </section>
 
-    <!-- SCREEN: Dashboard -->
-    <div id="screen-dashboard" class="screen" hidden>
+    <!-- MODE SELECTOR (each login) -->
+    <div class="overlay" id="mode-overlay" hidden>
+      <div class="modal" role="dialog" aria-modal="true">
+        <h2 id="mode-title">¿Cómo vas a usar GymBro?</h2>
+        <div class="mode-options">
+          <button class="btn-primary btn-big" id="mode-tv" tabindex="0">📺 En la TV</button>
+          <button class="btn-secondary btn-big" id="mode-movil" tabindex="0">📱 En el móvil</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN: Home (TV mode: routine of the day) -->
+    <section id="screen-home" class="screen" hidden>
       <header class="header">
         <div>
           <h1 class="title">GymBro</h1>
           <p class="greeting" id="greeting"></p>
         </div>
-        <div class="player-stats">
-          <span class="level" id="disp-level">Nivel 1</span>
-          <span class="points" id="disp-points">0 XP</span>
-          <span class="stat" id="disp-streak">🔥 0 días</span>
-        </div>
+        <button class="btn-link" id="btn-logout" tabindex="0">Salir</button>
       </header>
 
-      <div class="tab-bar">
-        <button class="btn-tab active" data-tab="exercises" tabindex="0">Ejercicios</button>
-        <button class="btn-tab" data-tab="routines" tabindex="0">Rutinas</button>
+      <!-- TV home -->
+      <div id="tv-home" class="tv-home" hidden>
+        <div id="tv-today" class="tv-today"></div>
       </div>
-      <div class="filter-bar" id="filter-bar">
-        <button class="btn-filter active" data-filter="all" tabindex="0">Todos</button>
-        <button class="btn-filter" data-filter="cardio" tabindex="0">Cardio</button>
-        <button class="btn-filter" data-filter="strength" tabindex="0">Fuerza</button>
-        <button class="btn-filter" data-filter="yoga" tabindex="0">Yoga</button>
-        <button class="btn-filter" data-filter="hiit" tabindex="0">HIIT</button>
-        <button class="btn-filter" data-filter="dance" tabindex="0">Baile</button>
-        <button class="btn-filter" data-filter="meditation" tabindex="0">Meditación</button>
-      </div>
-      <nav class="grid" id="grid" role="navigation" aria-label="Entrenamientos"></nav>
 
-      <div class="action-bar">
-        <button class="btn-secondary" id="btn-history" tabindex="0">Historial</button>
-        <button class="btn-secondary" id="btn-achievements" tabindex="0">Logros</button>
-        <button class="btn-secondary" id="btn-social" tabindex="0">Social</button>
-        <button class="btn-secondary" id="btn-plan" tabindex="0" hidden>Mi plan</button>
-        <button class="btn-secondary" id="btn-profile" tabindex="0">Mi perfil</button>
-        <button class="btn-secondary" id="btn-leaderboard" tabindex="0">Clasificación</button>
-        <button class="btn-secondary" id="btn-logout" tabindex="0">Salir</button>
-      </div>
-    </div>
-
-    <!-- SCREEN: Social -->
-    <section id="screen-social" class="screen" hidden>
-      <div class="form-card form-card--wide social-card">
-        <h1 class="title">Social</h1>
-
-        <div class="social-section">
-          <div class="social-search">
-            <input type="text" id="social-search" placeholder="Buscar usuarios..." tabindex="0">
-            <button class="btn-primary" id="social-search-btn" tabindex="0">Buscar</button>
-          </div>
-          <div id="social-search-results" class="social-list"></div>
-        </div>
-
-        <div class="social-section">
-          <h3 class="social-heading">Solicitudes recibidas</h3>
-          <div id="social-requests" class="social-list"></div>
-        </div>
-
-        <div class="social-section">
-          <h3 class="social-heading">Amigos</h3>
-          <div id="social-friends" class="social-list"></div>
-        </div>
-
-        <div class="social-section">
-          <h3 class="social-heading">Desafíos</h3>
-          <div class="social-create">
-            <select id="social-challenge-friend" tabindex="0"></select>
-            <select id="social-challenge-metric" tabindex="0">
-              <option value="first_to_xp">Primero en llegar a X XP</option>
-              <option value="total_workouts">Más workouts en N días</option>
-              <option value="best_streak">Mejor racha en N días</option>
-            </select>
-            <input type="number" id="social-challenge-days" min="1" max="90" value="7" placeholder="Días" tabindex="0">
-            <input type="number" id="social-challenge-target" min="1" placeholder="XP objetivo" tabindex="0">
-            <button class="btn-primary" id="social-challenge-send" tabindex="0">Retar</button>
-          </div>
-          <div class="social-tabs">
-            <button class="btn-filter active" data-ch-tab="active" tabindex="0">Activos</button>
-            <button class="btn-filter" data-ch-tab="pending" tabindex="0">Pendientes</button>
-            <button class="btn-filter" data-ch-tab="completed" tabindex="0">Completados</button>
-          </div>
-          <div id="social-challenges" class="social-list"></div>
-        </div>
-
-        <button class="btn-link" id="btn-social-back" tabindex="0">Volver</button>
-        <p id="social-error" class="error" hidden></p>
+      <!-- Mobile home -->
+      <div id="mobile-home" class="mobile-home" hidden>
+        <nav class="mobile-tabs">
+          <button class="btn-tab active" data-mtab="alimentacion" tabindex="0">Alimentación</button>
+          <button class="btn-tab" data-mtab="rutina" tabindex="0">Rutina</button>
+          <button class="btn-tab" data-mtab="seguimiento" tabindex="0">Seguimiento</button>
+          <button class="btn-tab" data-mtab="perfil" tabindex="0">Perfil</button>
+        </nav>
+        <div id="mtab-alimentacion" class="mtab" hidden></div>
+        <div id="mtab-rutina" class="mtab" hidden></div>
+        <div id="mtab-seguimiento" class="mtab" hidden></div>
+        <div id="mtab-perfil" class="mtab" hidden></div>
       </div>
     </section>
 
-    <!-- SCREEN: Profile -->
-    <section id="screen-profile" class="screen" hidden>
-      <div class="form-card form-card--wide">
-        <h1 class="title">Mi perfil</h1>
-        <form id="form-profile" class="form form--grid">
-          <p class="field-static" id="prof-name"></p>
-          <p class="field-static" id="prof-created"></p>
-          <select id="prof-sex" required tabindex="0">
-            <option value="male">Hombre</option>
-            <option value="female">Mujer</option>
-            <option value="other">Otro</option>
-          </select>
-          <input type="number" id="prof-height" min="50" max="250" required tabindex="0">
-          <input type="number" id="prof-weight" min="20" max="300" required tabindex="0">
-          <select id="prof-goal" required tabindex="0">
-            <option value="lose_weight">Perder peso</option>
-            <option value="gain_muscle">Ganar músculo</option>
-            <option value="endurance">Resistencia</option>
-            <option value="maintain">Mantenerme</option>
-          </select>
-          <button type="submit" class="btn-primary" tabindex="0">Guardar</button>
-        </form>
-        <button class="btn-link" id="btn-profile-back" tabindex="0">Volver</button>
-        <p id="profile-error" class="error" hidden></p>
-        <p id="profile-success" class="success" hidden></p>
-      </div>
-    </section>
-
-    <!-- SCREEN: Leaderboard -->
-    <section id="screen-leaderboard" class="screen" hidden>
-      <div class="form-card form-card--wide">
-        <h1 class="title">Clasificación</h1>
-        <ol class="leaderboard-list" id="leaderboard-list">
-          <li class="leaderboard-row leaderboard-row--header">
-            <span>#</span><span>Nombre</span><span>Nivel</span><span>Puntos</span>
-          </li>
-        </ol>
-        <button class="btn-link" id="btn-leaderboard-back" tabindex="0">Volver</button>
-      </div>
-    </section>
-
-    <!-- SCREEN: Achievements -->
-    <section id="screen-achievements" class="screen" hidden>
-      <div class="form-card form-card--wide">
-        <h1 class="title">Logros</h1>
-        <div id="achievements-grid" class="achievements-grid"></div>
-        <button class="btn-link" id="btn-achievements-back" tabindex="0">Volver</button>
-      </div>
-    </section>
-
-    <!-- SCREEN: History -->
-    <section id="screen-history" class="screen" hidden>
-      <div class="form-card form-card--wide">
-        <h1 class="title">Historial</h1>
-        <div id="history-stats" class="history-stats"></div>
-        <div id="history-list" class="history-list"></div>
-        <button class="btn-link" id="btn-history-back" tabindex="0">Volver</button>
-      </div>
-    </section>
-
-    <!-- SCREEN: Plan (Dake) -->
-    <section id="screen-plan" class="screen" hidden>
-      <div class="form-card form-card--wide">
-        <h1 class="title">Mi plan</h1>
-        <div class="plan-tabs">
-          <button class="btn-tab active" data-plan-tab="rutina" tabindex="0">Rutina</button>
-          <button class="btn-tab" data-plan-tab="nutricion" tabindex="0">Nutrición</button>
-        </div>
-        <div id="plan-content"></div>
-        <button class="btn-link" id="btn-plan-back" tabindex="0">Volver</button>
-        <p id="plan-error" class="error" hidden></p>
-      </div>
-    </section>
-
-    <!-- MODAL -->
-    <div class="overlay" id="overlay" hidden>
-      <div class="modal" role="dialog" aria-modal="true">
-        <h2 id="modal-title"></h2>
-        <p id="modal-desc" class="modal-desc"></p>
-        <div class="modal-meta">
-          <span id="modal-duration">⏱ 0 min</span>
-          <span id="modal-difficulty">📊 Principiante</span>
-          <span id="modal-points">⭐ +0 XP</span>
-        </div>
-        <div class="modal-guide" id="modal-guide" hidden>
-          <div class="modal-guide-head">
-            <span id="modal-guide-title">Cómo se hace</span>
-            <button class="btn-link btn-listening" id="modal-guide-listen" tabindex="0">🔊 Escuchar</button>
-          </div>
-          <div class="modal-guide-media" id="modal-guide-media"></div>
-          <ol class="modal-guide-steps" id="modal-guide-steps"></ol>
-          <div class="modal-guide-watch" id="modal-guide-watch"></div>
-        </div>
-        <button class="btn-primary" id="modal-start" tabindex="0">Comenzar</button>
-        <button class="btn-secondary" id="modal-close" tabindex="0">Cerrar</button>
-      </div>
-    </div>
-
-    <!-- WORKOUT SCREEN -->
+    <!-- SCREEN: Guided workout -->
     <section id="screen-workout" class="screen" hidden>
       <div class="workout-card">
-        <span class="workout-icon" id="workout-icon">🏃</span>
+        <span class="workout-label" id="workout-label"></span>
+        <span class="workout-icon" id="workout-icon">🏋️</span>
         <h2 class="workout-name" id="workout-name">Ejercicio</h2>
+        <div class="workout-meta" id="workout-meta"></div>
         <div class="workout-media" id="workout-media"></div>
         <div class="workout-coach" id="workout-coach" hidden>
           <div class="coach-progress" id="coach-progress"></div>
@@ -259,7 +120,7 @@
         <div class="workout-timer" id="workout-timer">⏱ 0:00</div>
         <div class="workout-reps-panel" id="workout-reps-panel" hidden>
           <label>Series <input type="number" id="workout-sets" min="1" max="99" placeholder="Series"></label>
-          <label>Reps <input type="number" id="workout-reps" min="1" max="999" placeholder="Repeticiones"></label>
+          <label>Reps <input type="text" id="workout-reps" placeholder="Repeticiones"></label>
           <label>Peso <input type="number" id="workout-weight" min="0" step="0.5" placeholder="kg"></label>
         </div>
         <button class="btn-primary btn-big" id="workout-complete" tabindex="0">✓ Completar</button>
@@ -267,13 +128,23 @@
       </div>
     </section>
 
+    <!-- MODAL (how-to guide preview) -->
+    <div class="overlay" id="overlay" hidden>
+      <div class="modal" role="dialog" aria-modal="true">
+        <h2 id="modal-title"></h2>
+        <div class="modal-guide-media" id="modal-guide-media"></div>
+        <ol class="modal-guide-steps" id="modal-guide-steps"></ol>
+        <div class="modal-guide-watch" id="modal-guide-watch"></div>
+        <button class="btn-primary" id="modal-start" tabindex="0">Comenzar</button>
+        <button class="btn-secondary" id="modal-close" tabindex="0">Cerrar</button>
+      </div>
+    </div>
+
     <!-- RESULT OVERLAY -->
     <div class="overlay" id="result-overlay" hidden>
       <div class="modal result-card" role="dialog" aria-modal="true">
-        <h2 class="result-title">🎉 Ejercicio completado</h2>
-        <p class="result-points" id="result-points">+0 XP</p>
-        <p class="result-streak" id="result-streak">🔥 Rachas: 0 días</p>
-        <div id="result-achievements" class="result-achievements"></div>
+        <h2 class="result-title">🎉 Completado</h2>
+        <p class="result-points" id="result-points"></p>
         <button class="btn-primary btn-big" id="result-ok" tabindex="0">Continuar</button>
       </div>
     </div>

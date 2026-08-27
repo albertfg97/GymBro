@@ -1,36 +1,24 @@
 (function () {
   const API = '/api';
 
-  let token = localStorage.getItem('gymbro-token');
+  let token = localStorage.getItem('gymbro-v2-token');
   let currentUser = null;
-  let allExercises = [];
-  let allRoutines = [];
-  let activeFilter = 'all';
-  let activeTab = 'exercises';
-  let focusIndex = 0;
-  let activeExercise = null;
+  let mode = null;                       // 'tv' | 'movil'
+  let plan = null;                       // normalized plan { rutina, alimentacion }
+  let pendingStart = null;               // pending workout exercise
+  let coachSteps = [];
+  let coachIndex = 0;
   let timerInterval = null;
   let timerSeconds = 0;
-  let activeRoutine = null;
-  let routineExerciseIndex = 0;
-  let routineTotalPoints = 0;
-  let routineCompletedDuration = 0;
-  let plan = null;
-  let planTab = 'rutina';
+  let mobileTab = 'alimentacion';
 
   /* ---------- helpers ---------- */
-  async function api(method, path, body) {
-    const opts = {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-    };
-    if (token) opts.headers['Authorization'] = `Bearer ${token}`;
-    if (body) opts.body = JSON.stringify(body);
-
-    const res = await fetch(`${API}${path}`, opts);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Error del servidor');
-    return data;
+  function showError(id, msg) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = msg;
+    el.hidden = false;
+    setTimeout(() => { el.hidden = true; }, 4000);
   }
 
   function show(id) {
@@ -39,172 +27,195 @@
     if (el) el.hidden = false;
   }
 
-  function showError(id, msg) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.textContent = msg;
-    el.hidden = false;
-    setTimeout(() => el.hidden = true, 4000);
+  async function api(method, path, body) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (token) opts.headers.Authorization = `Bearer ${token}`;
+    if (body !== undefined) opts.body = typeof body === 'string' ? body : JSON.stringify(body);
+    const res = await fetch(`${API}${path}`, opts);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Error del servidor');
+    return data;
   }
 
-  function showSuccess(id, msg) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.textContent = msg;
-    el.hidden = false;
-    setTimeout(() => el.hidden = true, 3000);
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
-  const diffLabels = { beginner: 'Principiante', intermediate: 'Intermedio', advanced: 'Avanzado' };
-
-  /* ---------- voice (entrenador) ---------- */
+  /* ---------- voice ---------- */
   const Voice = (() => {
     let esVoice = null;
-
+    function pick() {
+      if (!('speechSynthesis' in window)) return;
+      const voices = window.speechSynthesis.getVoices();
+      esVoice = voices.find(v => /^es/i.test(v.lang)) || null;
+    }
     function init() {
       if (!('speechSynthesis' in window)) return;
-      const pick = () => {
-        const voices = window.speechSynthesis.getVoices();
-        esVoice = voices.find(v => /es(-|_)?(ES|MX|AR|CL|419)/i.test(v.lang)) ||
-          voices.find(v => /^es/i.test(v.lang)) || null;
-      };
       pick();
       window.speechSynthesis.onvoiceschanged = pick;
     }
-
-    function speak(text, { rate = 1, onend } = {}) {
-      if (!('speechSynthesis' in window)) {
-        if (onend) onend();
-        return;
-      }
+    function speak(text) {
+      if (!('speechSynthesis' in window)) return;
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = 'es-ES';
-      u.rate = rate;
+      u.lang = 'es-ES'; u.rate = 1;
       if (esVoice) u.voice = esVoice;
-      if (onend) u.onend = onend;
       window.speechSynthesis.speak(u);
     }
-
     function stop() {
       if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     }
-
     return { init, speak, stop };
   })();
-  Voice.init();
 
-  /* ---------- guía de ejercicio ---------- */
-  function parseGuide(raw) {
-    if (!raw) return null;
-    if (typeof raw === 'object') return raw;
-    try { return JSON.parse(raw); } catch { return null; }
+  /* ---------- auth ---------- */
+  async function loadProfile() {
+    currentUser = await api('GET', '/profile');
   }
 
-  /* ---------- exercises ---------- */
-  function renderGrid(filter) {
-    const grid = document.getElementById('grid');
-    const source = activeTab === 'routines' ? allRoutines : allExercises;
-
-    let items;
-    if (activeTab === 'routines') {
-      items = source;
-    } else {
-      items = filter === 'all' ? source : source.filter(e => e.category === filter);
-    }
-
-    grid.innerHTML = items.map((item, i) => {
-      if (activeTab === 'routines') {
-        const r = item;
-        return `
-          <button class="card card-routine" data-routine-id="${r.id}" tabindex="0">
-            <span class="card-icon">${r.icon}</span>
-            <span class="card-title">${r.name}</span>
-            <span class="card-desc">${r.description}</span>
-            <span class="card-meta">
-              <span>📋 ${r.exerciseCount} ejercicios</span>
-              <span>⏱ ~${r.totalDuration} min</span>
-              <span class="diff-${r.difficulty}">${diffLabels[r.difficulty]}</span>
-            </span>
-          </button>`;
-      }
-      return `
-        <button class="card" data-id="${item.id}" tabindex="0">
-          <span class="card-icon">${item.icon}</span>
-          <span class="card-title">${item.name}</span>
-          <span class="card-desc">${item.description}</span>
-          <span class="card-meta">
-            <span>⏱ ${item.duration} min</span>
-            <span class="diff-${item.difficulty}">${diffLabels[item.difficulty]}</span>
-          </span>
-        </button>`;
-    }).join('');
-
-    focusIndex = 0;
-    if (grid.firstElementChild) grid.firstElementChild.focus();
+  async function loadPlan() {
+    plan = await api('GET', '/profile/plan');
   }
 
-  /* ---------- tab switching ---------- */
-  function setupTabs() {
-    document.querySelector('.tab-bar').addEventListener('click', (e) => {
-      const btn = e.target.closest('.btn-tab');
-      if (!btn) return;
-      document.querySelectorAll('.btn-tab').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      activeTab = btn.dataset.tab;
+  /* ---------- mode selector ---------- */
+  const modeOverlay = document.getElementById('mode-overlay');
 
-      const filterBar = document.getElementById('filter-bar');
-      filterBar.style.display = activeTab === 'exercises' ? '' : 'none';
-
-      if (activeTab === 'routines') {
-        renderGrid();
-      } else {
-        renderGrid(activeFilter);
-      }
+  function askMode(afterLogin) {
+    return new Promise(resolve => {
+      const tv = document.getElementById('mode-tv');
+      const mv = document.getElementById('mode-movil');
+      function chose(m) { tv.removeEventListener('click', onTv); mv.removeEventListener('click', onMv); modeOverlay.hidden = true; resolve(m); }
+      function onTv() { chose('tv'); }
+      function onMv() { chose('movil'); }
+      tv.addEventListener('click', onTv);
+      mv.addEventListener('click', onMv);
+      modeOverlay.hidden = false;
+      (mode === 'tv' ? tv : mv).focus();
     });
   }
 
-  /* ---------- filters ---------- */
-  function setupFilters() {
-    document.getElementById('filter-bar').addEventListener('click', (e) => {
-      const btn = e.target.closest('.btn-filter');
-      if (!btn) return;
-      document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      activeFilter = btn.dataset.filter;
-      renderGrid(activeFilter);
+  /* ---------- home ---------- */
+  function enterHome() {
+    document.getElementById('greeting').textContent = `Bienvenido, ${currentUser.name}`;
+    const tvHome = document.getElementById('tv-home');
+    const mobHome = document.getElementById('mobile-home');
+    tvHome.hidden = mode !== 'tv';
+    mobHome.hidden = mode !== 'movil';
+    if (mode === 'tv') renderTVHome();
+    else renderMobileTabs();
+    show('screen-home');
+  }
+
+  /* ================= TV ================= */
+  function renderTVHome() {
+    const box = document.getElementById('tv-today');
+    api('GET', '/rutina/hoy').then(d => {
+      const h = d.hoy;
+      if (!h || !h.entrena || !h.ejercicios.length) {
+        box.innerHTML = `<div class="tv-card tv-empty">
+          <p class="tv-empty-title">Hoy toca descanso 💤</p>
+          <p class="plan-muted">Añade o revisa tu plan desde el móvil (perfil → importar plan).</p>
+        </div>`;
+        return;
+      }
+      const bloquesHTML = h.ejercicios.map(ex => `
+        <button class="tv-ex-card" data-start="${ex.idx}" tabindex="0">
+          <span class="tv-ex-icon">${ex.icon}</span>
+          <span class="tv-ex-name">${esc(ex.ejercicio)}</span>
+          <span class="tv-ex-meta">${ex.sets ? `${ex.sets}×` : ''}${esc(ex.reps)}${ex.descanso_s ? ` · ${ex.descanso_s}s` : ''}</span>
+        </button>`).join('');
+      box.innerHTML = `
+        <div class="tv-card">
+          <div class="tv-heading">
+            <div>
+              <h2 class="tv-title">Hoy · ${esc(h.dia)}</h2>
+              <p class="plan-muted">Bloque ${esc(h.bloque || '')} · ${h.ejercicios.length} ejercicios</p>
+            </div>
+            <button class="btn-secondary" id="tv-ver-bloques" tabindex="0">Ver otros días</button>
+          </div>
+          <div class="tv-ex-grid">${bloquesHTML}</div>
+        </div>`;
+      box.querySelectorAll('[data-start]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const ex = h.ejercicios.find(e => e.idx === Number(btn.dataset.start));
+          if (ex) pendingStart = { ex, context: 'rutina' };
+          startWorkout(ex);
+        });
+      });
+      document.getElementById('tv-ver-bloques').addEventListener('click', () => showBlockPicker());
+    }).catch(err => {
+      box.innerHTML = `<div class="tv-card tv-empty"><p class="plan-muted">${esc(err.message)}</p></div>`;
     });
   }
 
-  /* ---------- card delegation ---------- */
-  document.getElementById('grid').addEventListener('click', (e) => {
-    const card = e.target.closest('.card');
-    if (!card) return;
-    if (activeTab === 'routines') {
-      const id = parseInt(card.dataset.routineId);
-      const routine = allRoutines.find(r => r.id === id);
-      if (routine) openRoutineModal(routine);
-    } else {
-      const id = parseInt(card.dataset.id);
-      const ex = allExercises.find(e => e.id === id);
-      if (ex) openExerciseModal(ex);
-    }
-  });
+  async function showBlockPicker() {
+    const rutina = (await api('GET', '/rutina')).rutina;
+    if (!rutina) return;
+    const box = document.getElementById('tv-today');
+    const blocks = Object.keys(rutina.bloques || {}).map(k => ({
+      bloque: k,
+      ejercicios: rutina.bloques[k] || [],
+    }));
+    const list = blocks.map(b => `
+      <button class="tv-bloque-card" data-bloque="${esc(b.bloque)}" tabindex="0">
+        <span class="tv-bloque-name">Bloque ${esc(b.bloque)}</span>
+        <span class="plan-muted">${b.ejercicios.length} ejercicios</span>
+      </button>`).join('');
+    box.innerHTML = `<div class="tv-card">
+      <div class="tv-heading"><div><h2 class="tv-title">Elige un bloque</h2></div>
+        <button class="btn-secondary" id="tv-volver" tabindex="0">← Hoy</button></div>
+      <div class="tv-ex-grid">${list || '<p class="plan-muted">Sin bloques en el plan.</p>'}</div>
+    </div>`;
+    document.getElementById('tv-volver').addEventListener('click', () => renderTVHome());
+    box.querySelectorAll('[data-bloque]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const ej = blocks.find(b => b.bloque === btn.dataset.bloque).ejercicios;
+        renderTVBlock(btn.dataset.bloque, ej);
+      });
+    });
+  }
 
-  /* ---------- exercise modal ---------- */
-  const overlay = document.getElementById('overlay');
-  const modalTitle = document.getElementById('modal-title');
-  const modalDesc = document.getElementById('modal-desc');
-  const modalDuration = document.getElementById('modal-duration');
-  const modalDifficulty = document.getElementById('modal-difficulty');
-  const modalPoints = document.getElementById('modal-points');
-  const modalStart = document.getElementById('modal-start');
-  const modalClose = document.getElementById('modal-close');
-  const modalGuide = document.getElementById('modal-guide');
-  const modalGuideMedia = document.getElementById('modal-guide-media');
-  const modalGuideSteps = document.getElementById('modal-guide-steps');
-  const modalGuideWatch = document.getElementById('modal-guide-watch');
-  const modalGuideListen = document.getElementById('modal-guide-listen');
+  function renderTVBlock(bloque, ejercicios) {
+    const box = document.getElementById('tv-today');
+    const list = ejercicios.map((ex, i) => `
+      <button class="tv-ex-card" data-start="${i}" tabindex="0">
+        <span class="tv-ex-icon">${ex.icon}</span>
+        <span class="tv-ex-name">${esc(ex.ejercicio)}</span>
+        <span class="tv-ex-meta">${ex.sets ? `${ex.sets}×` : ''}${esc(ex.reps)}${ex.descanso_s ? ` · ${ex.descanso_s}s` : ''}</span>
+      </button>`).join('');
+    box.innerHTML = `<div class="tv-card">
+      <div class="tv-heading"><div><h2 class="tv-title">Bloque ${esc(bloque)}</h2></div>
+        <button class="btn-secondary" id="tv-volver" tabindex="0">← Bloques</button></div>
+      <div class="tv-ex-grid">${list}</div>
+    </div>`;
+    document.getElementById('tv-volver').addEventListener('click', () => showBlockPicker());
+    box.querySelectorAll('[data-start]').forEach(btn => {
+      btn.addEventListener('click', () => startWorkout(ejercicios[Number(btn.dataset.start)]));
+    });
+  }
+
+  /* ================= Guided workout ================= */
+  const workoutIcon = document.getElementById('workout-icon');
+  const workoutName = document.getElementById('workout-name');
+  const workoutMeta = document.getElementById('workout-meta');
+  const workoutMedia = document.getElementById('workout-media');
+  const workoutTimer = document.getElementById('workout-timer');
+  const workoutHint = document.getElementById('workout-hint');
+  const workoutComplete = document.getElementById('workout-complete');
+  const workoutCancel = document.getElementById('workout-cancel');
+  const repsPanel = document.getElementById('workout-reps-panel');
+  const repsSets = document.getElementById('workout-sets');
+  const repsCount = document.getElementById('workout-reps');
+  const repsWeight = document.getElementById('workout-weight');
+  const workoutLabel = document.getElementById('workout-label');
+  const coachBox = document.getElementById('workout-coach');
+  const coachProgress = document.getElementById('coach-progress');
+  const coachLine = document.getElementById('coach-line');
+  const coachPrev = document.getElementById('coach-prev');
+  const coachNext = document.getElementById('coach-next');
+  const coachListen = document.getElementById('coach-listen');
 
   function renderGuideMedia(container, guide, cls) {
     container.innerHTML = '';
@@ -217,1040 +228,421 @@
     container.append(img);
   }
 
-  function renderGuideIntoModal(guide) {
-    renderGuideMedia(modalGuideMedia, guide, 'guide-gif');
-    if (!guide) {
-      modalGuide.hidden = true;
-      return;
-    }
-    modalGuideSteps.innerHTML = (guide.steps || []).map(s => `<li>${s}</li>`).join('');
-    modalGuideWatch.innerHTML = (guide.watch || []).length
-      ? `<span class="watch-label">⚠ ${guide.watch.join(' · ')}</span>` : '';
-    modalGuide.hidden = false;
-  }
+  function startWorkout(ex, sourceItem) {
+    sourceItem = sourceItem || null;
+    workoutIcon.textContent = ex.icon || '🏋️';
+    workoutName.textContent = ex.ejercicio || ex.name || 'Ejercicio';
+    const guide = ex.guide || null;
+    renderGuideMedia(workoutMedia, guide, 'guide-gif guide-gif--large');
+    workoutLabel.textContent = (ex.sets ? `${ex.sets}×` : '') + (ex.reps ? ` ${ex.reps}` : '') + (ex.descanso_s ? ` · descanso ${ex.descanso_s}s` : '');
+    workoutMeta.textContent = guide ? 'Modo guiado: sígueme paso a paso' : 'Sigue el ejercicio y completa';
 
-  function openExerciseModal(ex) {
-    activeExercise = ex;
-    modalTitle.textContent = ex.name;
-    modalDesc.textContent = ex.description;
-    modalDuration.textContent = `⏱ ${ex.duration} min`;
-    modalDifficulty.textContent = `📊 ${diffLabels[ex.difficulty]}`;
-    modalPoints.textContent = `⭐ +${ex.points} XP`;
-    renderGuideIntoModal(parseGuide(ex.guide));
-    overlay.hidden = false;
-    modalStart.focus();
-  }
-
-  function closeModal() {
-    overlay.hidden = true;
-    Voice.stop();
-    activeExercise = null;
-    activeRoutine = null;
-    modalStart.textContent = 'Comenzar';
-    focusGrid(focusIndex);
-  }
-
-  modalClose.addEventListener('click', closeModal);
-  overlay.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeModal();
-  });
-
-  modalGuideListen.addEventListener('click', () => {
-    const guide = parseGuide(activeExercise ? activeExercise.guide : null);
-    if (!guide) return;
-    const text = [guide.coach, ...(guide.steps || []), ...(guide.watch || [])].join('. ');
-    Voice.speak(text);
-  });
-
-  /* ---------- routine modal ---------- */
-  async function openRoutineModal(routine) {
-    try {
-      const detail = await api('GET', `/routines/${routine.id}`);
-      activeRoutine = detail;
-      modalGuide.hidden = true;
-      modalTitle.textContent = detail.name;
-      modalDesc.textContent = detail.description;
-      modalDuration.textContent = `📋 ${detail.exercises.length} ejercicios`;
-      modalDifficulty.textContent = `📊 ${diffLabels[detail.difficulty]}`;
-
-      const total = detail.exercises.reduce((s, e) => s + (e.duration_override || e.duration), 0);
-      modalPoints.innerHTML = `⏱ ~${total} min`;
-
-      const listHtml = detail.exercises.map((ex, i) =>
-        `<div class="routine-ex-item">
-          <span class="routine-ex-num">${i + 1}</span>
-          <span class="routine-ex-icon">${ex.icon}</span>
-          <span class="routine-ex-name">${ex.name}</span>
-          <span class="routine-ex-dur">${ex.duration_override || ex.duration} min</span>
-        </div>`
-      ).join('');
-
-      modalStart.textContent = 'Comenzar rutina';
-      overlay.hidden = false;
-      modalStart.focus();
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  /* ---------- workout flow ---------- */
-  modalStart.addEventListener('click', () => {
-    if (activeRoutine) {
-      overlay.hidden = true;
-      routineExerciseIndex = 0;
-      routineTotalPoints = 0;
-      routineCompletedDuration = 0;
-      startRoutineExercise();
-    } else if (activeExercise) {
-      overlay.hidden = true;
-      startWorkout(activeExercise, false);
-    }
-  });
-
-  const workoutIcon = document.getElementById('workout-icon');
-  const workoutName = document.getElementById('workout-name');
-  const workoutMedia = document.getElementById('workout-media');
-  const workoutTimer = document.getElementById('workout-timer');
-  const workoutHint = document.getElementById('workout-hint');
-  const workoutComplete = document.getElementById('workout-complete');
-  const workoutCancel = document.getElementById('workout-cancel');
-  const repsPanel = document.getElementById('workout-reps-panel');
-  const repsSets = document.getElementById('workout-sets');
-  const repsCount = document.getElementById('workout-reps');
-  const repsWeight = document.getElementById('workout-weight');
-
-  const coachBox = document.getElementById('workout-coach');
-  const coachProgress = document.getElementById('coach-progress');
-  const coachLine = document.getElementById('coach-line');
-  const coachPrev = document.getElementById('coach-prev');
-  const coachNext = document.getElementById('coach-next');
-  const coachListen = document.getElementById('coach-listen');
-  let coachSteps = [];
-  let coachIndex = 0;
-
-  function renderCoach() {
-    if (!coachSteps.length) {
-      coachBox.hidden = true;
-      return;
-    }
-    coachBox.hidden = false;
-    const total = coachSteps.length;
-    const n = Math.min(coachIndex, total - 1);
-    coachLine.textContent = coachSteps[n];
-    coachProgress.innerHTML = coachSteps.map((_, i) =>
-      `<span class="coach-dot ${i === n ? 'active' : ''}"></span>`
-    ).join('');
-    coachPrev.disabled = n === 0;
-    coachNext.disabled = n === total - 1;
-  }
-
-  function speakCoachStep() {
-    if (!coachSteps.length) return;
-    const n = Math.min(coachIndex, coachSteps.length - 1);
-    Voice.speak(coachSteps[n]);
-  }
-
-  function startWorkout(ex, isRoutine) {
-    activeExercise = ex;
-    workoutIcon.textContent = ex.icon;
-    workoutName.textContent = ex.name;
-    renderGuideMedia(workoutMedia, parseGuide(ex.guide), 'guide-gif guide-gif--large');
-    workoutHint.textContent = isRoutine
-      ? `Ejercicio ${routineExerciseIndex + 1} de ${activeRoutine.exercises.length}`
-      : 'Realiza el ejercicio y presiona Completar cuando termines';
-    timerSeconds = 0;
-    updateTimerDisplay();
-
-    const showReps = ex.unit === 'reps';
-    repsPanel.hidden = !showReps;
-    repsSets.value = '';
-    repsCount.value = '';
+    repsPanel.hidden = !(ex.sets || ex.reps);
+    repsSets.value = ex.sets || '';
+    repsCount.value = ex.reps || '';
     repsWeight.value = '';
 
-    const guide = parseGuide(ex.guide);
     coachSteps = guide && Array.isArray(guide.steps) ? guide.steps.slice() : [];
     coachIndex = 0;
     renderCoach();
     if (coachSteps.length) {
-      Voice.speak([guide.coach, coachSteps[0]].filter(Boolean).join('. '));
+      Voice.speak([guide && guide.coach, coachSteps[0]].filter(Boolean).join('. '));
     }
 
+    timerSeconds = 0;
+    updateTimer();
     show('screen-workout');
     workoutComplete.focus();
 
     if (timerInterval) clearInterval(timerInterval);
-    timerInterval = setInterval(() => {
-      timerSeconds++;
-      updateTimerDisplay();
-    }, 1000);
+    timerInterval = setInterval(() => { timerSeconds++; updateTimer(); }, 1000);
   }
 
-  function updateTimerDisplay() {
+  function updateTimer() {
     const m = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
     const s = String(timerSeconds % 60).padStart(2, '0');
     workoutTimer.textContent = `⏱ ${m}:${s}`;
   }
 
   function stopTimer() {
-    if (timerInterval) {
-      clearInterval(timerInterval);
-      timerInterval = null;
-    }
+    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
   }
 
-  workoutComplete.addEventListener('click', async () => {
-    if (!activeExercise) return;
-    stopTimer();
-    Voice.stop();
-
-    const actualDuration = Math.max(1, Math.round(timerSeconds / 60));
-    const isRoutine = activeRoutine !== null;
-
-    try {
-      const payload = {
-        exerciseId: activeExercise.id,
-        duration: actualDuration,
-      };
-      if (activeExercise.unit === 'reps') {
-        const setCount = parseInt(repsSets.value, 10);
-        const repCount = parseInt(repsCount.value, 10);
-        const weightKg = parseFloat(repsWeight.value);
-        if (setCount > 0) payload.setCount = setCount;
-        if (repCount > 0) payload.repCount = repCount;
-        if (weightKg > 0) payload.weightKg = weightKg;
-      }
-      const result = await api('POST', '/workouts/complete', payload);
-
-      document.getElementById('disp-points').textContent = `${result.totalPoints} XP`;
-      document.getElementById('disp-level').textContent = `Nivel ${result.level}`;
-      document.getElementById('disp-streak').textContent = `🔥 ${result.currentStreak} días`;
-
-      if (currentUser) {
-        currentUser.points = result.totalPoints;
-        currentUser.level = result.level;
-      }
-
-      if (isRoutine) {
-        routineTotalPoints += result.points;
-        routineCompletedDuration += actualDuration;
-        routineExerciseIndex++;
-
-        if (routineExerciseIndex >= activeRoutine.exercises.length) {
-          showRoutineComplete();
-        } else {
-          startRoutineExercise();
-        }
-      } else {
-        showResult(result, false);
-      }
-    } catch (err) {
-      showResult({ error: err.message }, false);
-    }
-  });
-
-  function startRoutineExercise() {
-    const ex = activeRoutine.exercises[routineExerciseIndex];
-    startWorkout(ex, true);
+  function renderCoach() {
+    if (!coachSteps.length) { coachBox.hidden = true; return; }
+    coachBox.hidden = false;
+    const n = Math.min(coachIndex, coachSteps.length - 1);
+    const total = coachSteps.length;
+    coachLine.textContent = coachSteps[n];
+    coachProgress.innerHTML = coachSteps.map((_, i) =>
+      `<span class="coach-dot ${i === n ? 'active' : ''}"></span>`).join('');
+    coachPrev.disabled = n === 0;
+    coachNext.disabled = n === total - 1;
   }
 
-  workoutCancel.addEventListener('click', () => {
-    stopTimer();
-    Voice.stop();
-    activeExercise = null;
-    activeRoutine = null;
-    show('screen-dashboard');
-    focusGrid(0);
-  });
+  function speakCoachStep() {
+    if (!coachSteps.length) return;
+    Voice.speak(coachSteps[Math.min(coachIndex, coachSteps.length - 1)]);
+  }
 
-  coachPrev.addEventListener('click', () => {
-    if (coachIndex > 0) { coachIndex--; renderCoach(); speakCoachStep(); }
-  });
-
-  coachNext.addEventListener('click', () => {
-    if (coachIndex < coachSteps.length - 1) { coachIndex++; renderCoach(); speakCoachStep(); }
-  });
-
+  coachPrev.addEventListener('click', () => { if (coachIndex > 0) { coachIndex--; renderCoach(); speakCoachStep(); } });
+  coachNext.addEventListener('click', () => { if (coachIndex < coachSteps.length - 1) { coachIndex++; renderCoach(); speakCoachStep(); } });
   coachListen.addEventListener('click', () => {
     if (!coachSteps.length) return;
-    const guide = parseGuide(activeExercise ? activeExercise.guide : null);
-    const text = [guide && guide.coach, coachSteps[Math.min(coachIndex, coachSteps.length - 1)]].filter(Boolean).join('. ');
-    Voice.speak(text);
+    const t = [coachSteps[Math.min(coachIndex, coachSteps.length - 1)]].filter(Boolean).join('. ');
+    Voice.speak(t);
   });
 
-  /* ---------- result ---------- */
+  workoutComplete.addEventListener('click', async () => {
+    stopTimer();
+    Voice.stop();
+    const name = workoutName.textContent;
+    const sets = parseInt(repsSets.value, 10);
+    const reps = repsCount.value;
+    const weight = parseFloat(repsWeight.value);
+    try {
+      const payload = { ejercicio: name };
+      if (sets > 0) payload.sets = sets;
+      if (reps && reps.length) payload.reps = reps;
+      if (weight > 0) payload.peso_kg = weight;
+      await api('POST', '/tracking/workout', payload);
+      showResult('✓ Ejercicio registrado' + (mode === 'tv' ? ' · sigue con el siguiente' : ''));
+    } catch (err) {
+      showResult('No se pudo registrar: ' + err.message);
+    }
+  });
+
+  workoutCancel.addEventListener('click', () => {
+    stopTimer(); Voice.stop(); pendingStart = null;
+    enterHome();
+  });
+
   const resultOverlay = document.getElementById('result-overlay');
-  const resultTitle = document.querySelector('.result-title');
   const resultPoints = document.getElementById('result-points');
-  const resultStreak = document.getElementById('result-streak');
-  const resultAchievements = document.getElementById('result-achievements');
   const resultOk = document.getElementById('result-ok');
 
-  function showResult(data, isRoutine) {
-    if (data.error) {
-      resultPoints.textContent = '❌ Error';
-      resultStreak.textContent = '';
-      resultAchievements.innerHTML = `<p style="color:var(--error)">${data.error}</p>`;
-    } else {
-      resultTitle.textContent = isRoutine ? '🎉 Rutina completada' : '🎉 Ejercicio completado';
-      resultPoints.textContent = `+${data.points} XP`;
-      resultStreak.textContent = `🔥 Rachas: ${data.currentStreak} días`;
-      showAchievements(data.newAchievements);
-    }
-    activeExercise = null;
-    activeRoutine = null;
+  function showResult(text) {
+    resultPoints.textContent = text;
     resultOverlay.hidden = false;
     resultOk.focus();
   }
-
-  function showRoutineComplete() {
-    stopTimer();
-    resultTitle.textContent = '🎉 Rutina completada';
-    resultPoints.textContent = `+${routineTotalPoints} XP total`;
-    resultStreak.textContent = `⏱ ${routineCompletedDuration} min`;
-    resultAchievements.innerHTML = '';
-    activeExercise = null;
-    activeRoutine = null;
-    resultOverlay.hidden = false;
-    resultOk.focus();
-  }
-
-  function showAchievements(newAchievements) {
-    if (newAchievements && newAchievements.length > 0) {
-      resultAchievements.innerHTML = '<h3 style="font-size:1.2rem;color:var(--success)">🎖️ Nuevos logros</h3>' +
-        newAchievements.map(a =>
-          `<div class="result-achievement">${a.icon} ${a.name}: ${a.description}</div>`
-        ).join('');
-    } else {
-      resultAchievements.innerHTML = '';
-    }
-  }
-
   resultOk.addEventListener('click', () => {
     resultOverlay.hidden = true;
-    show('screen-dashboard');
-    focusGrid(0);
+    enterHome();
   });
-
   resultOverlay.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !resultOverlay.hidden) {
-      resultOverlay.hidden = true;
-      show('screen-dashboard');
-      focusGrid(0);
-    }
+    if (e.key === 'Escape' && !resultOverlay.hidden) { resultOverlay.hidden = true; enterHome(); }
   });
 
-  /* ---------- auth guard ---------- */
-  async function restoreSession() {
-    if (!token) return false;
-    try {
-      currentUser = await api('GET', '/profile');
-      return true;
-    } catch {
-      token = null;
-      localStorage.removeItem('gymbro-token');
-      return false;
-    }
+  /* ================= MOBILE ================= */
+  const mtabContainers = {
+    alimentacion: document.getElementById('mtab-alimentacion'),
+    rutina: document.getElementById('mtab-rutina'),
+    seguimiento: document.getElementById('mtab-seguimiento'),
+    perfil: document.getElementById('mtab-perfil'),
+  };
+
+  document.querySelectorAll('[data-mtab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      mobileTab = btn.dataset.mtab;
+      document.querySelectorAll('[data-mtab]').forEach(b => b.classList.toggle('active', b === btn));
+      renderMobileTabs();
+    });
+  });
+
+  function renderMobileTabs() {
+    Object.keys(mtabContainers).forEach(k => {
+      mtabContainers[k].hidden = k !== mobileTab;
+    });
+    if (mobileTab === 'alimentacion') renderAlimentacion();
+    if (mobileTab === 'rutina') renderMobileRutina();
+    if (mobileTab === 'seguimiento') renderSeguimiento();
+    if (mobileTab === 'perfil') renderPerfil();
   }
 
-  async function loadData() {
-    const [exercises, routines] = await Promise.all([
-      api('GET', '/exercises'),
-      api('GET', '/routines'),
-    ]);
-    allExercises = exercises;
-    allRoutines = routines;
+  function renderAlimentacion() {
+    const box = mtabContainers.alimentacion;
+    api('GET', '/alimentacion').then(d => {
+      const a = d.alimentacion;
+      if (!a) {
+        box.innerHTML = `<div class="m-card"><p class="plan-muted">Sin plan de alimentación. Impórtalo desde Perfil.</p></div>`;
+        return;
+      }
+      const obj = a.objetivos || {};
+      let html = `<div class="m-card">
+        <h3 class="m-title">🎯 Objetivos diarios</h3>
+        <p>${obj.kcal_dia || '-'} kcal · Proteína: ${esc(obj.proteina_g || '-')} g</p>
+        ${obj.deficit_kcal ? `<p class="plan-muted">Déficit ${esc(obj.deficit_kcal)}</p>` : ''}
+      </div>`;
+
+      const dietTabs = (a.dieta_7_dias || []).map((d, i) =>
+        `<button class="chip ${i === 0 ? 'active' : ''}" data-dieta="${i}" tabindex="0">${esc(d.etiqueta || `Día ${d.dia}`)}</button>`).join('');
+      html += `<div class="m-card"><h3 class="m-title">📆 Menú semanal</h3>
+        <div class="chip-row">${dietTabs || '<p class="plan-muted">Sin menú.</p>'}</div>
+        <div id="diet-detail"></div></div>`;
+
+      const lista = a.lista_compra || {};
+      const listaHtml = Object.keys(lista).map(k => {
+        const items = Array.isArray(lista[k]) ? lista[k] : [];
+        return `<div class="plan-sub"><strong>${esc(k)}</strong></div>
+          <ul class="plan-list">${items.map(i => `<li>${esc(i)}</li>`).join('')}</ul>`;
+      }).join('');
+      html += `<div class="m-card"><h3 class="m-title">🛒 Lista de la compra</h3>${listaHtml || '<p class="plan-muted">Sin lista.</p>'}</div>`;
+
+      if (a.principios && a.principios.length) {
+        html += `<div class="m-card"><h3 class="m-title">📌 Principios</h3>
+          <ul class="plan-list">${a.principios.map(p => `<li>${esc(p)}</li>`).join('')}</ul></div>`;
+      }
+
+      box.innerHTML = html;
+
+      const diet = a.dieta_7_dias || [];
+      function showDiet(i) {
+        const d = diet[i];
+        if (!d) { document.getElementById('diet-detail').innerHTML = ''; return; }
+        const rows = [
+          ['☀️ Desayuno', d.desayuno], ['🍽 Comida', d.comida], ['🥜 Snack', d.snack], ['🌙 Cena', d.cena],
+        ].map(([label, val]) => val ? `<p><strong>${label}:</strong> ${esc(val)}</p>` : '').join('');
+        document.getElementById('diet-detail').innerHTML = rows +
+          `<div class="diet-check"><button class="btn-primary" data-comida-done tabindex="0">✓ Comidas hechas</button></div>`;
+        document.querySelector('[data-comida-done]').addEventListener('click', async () => {
+          await Promise.all(['desayuno', 'comida', 'snack', 'cena'].map(c =>
+            api('POST', '/tracking/nutrition', { comida: c, done: 1 })));
+          showResult('Menú del día anotado');
+        });
+      }
+      box.querySelectorAll('[data-dieta]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          box.querySelectorAll('[data-dieta]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          showDiet(Number(btn.dataset.dieta));
+        });
+      });
+      if (diet.length) showDiet(0);
+    }).catch(err => {
+      box.innerHTML = `<div class="m-card"><p class="plan-muted">${esc(err.message)}</p></div>`;
+    });
   }
 
-  async function enterDashboard(user) {
-    currentUser = user;
-    document.getElementById('greeting').textContent = `Bienvenido, ${user.name}`;
-    document.getElementById('disp-level').textContent = `Nivel ${user.level}`;
-    document.getElementById('disp-points').textContent = `${user.points} XP`;
+  function renderMobileRutina() {
+    const box = mtabContainers.rutina;
+    api('GET', '/rutina').then(d => {
+      const r = d.rutina;
+      if (!r || !Object.keys(r.bloques || {}).length) {
+        box.innerHTML = `<div class="m-card"><p class="plan-muted">Sin plan de rutina. Impórtalo desde Perfil.</p></div>`;
+        return;
+      }
+      const days = (r.dias_semana || []).map(x => `${esc(x.dia)}: ${esc(x.bloque)}`).join(' · ');
+      let html = `<div class="m-card"><h3 class="m-title">📅 Semana</h3><p>${esc(days || 'Sin días asignados')}</p></div>`;
+      Object.keys(r.bloques).forEach(k => {
+        const list = r.bloques[k] || [];
+        const items = list.map(ex => `
+          <div class="rutina-row" data-manual-start="${esc(ex.ejercicio)}">
+            <span class="routine-ex-icon">${ex.icon}</span>
+            <span class="routine-ex-name">${esc(ex.ejercicio)}</span>
+            <span class="routine-ex-dur">${ex.sets ? `${ex.sets}×` : ''}${esc(ex.reps)}${ex.descanso_s ? ` · ${ex.descanso_s}s` : ''}</span>
+          </div>`).join('');
+        html += `<div class="m-card"><h3 class="m-title">Bloque ${esc(k)}</h3>${items || '<p class="plan-muted">Vacío</p>'}</div>`;
+      });
+      box.innerHTML = html;
+      box.querySelectorAll('[data-manual-start]').forEach(row => {
+        row.addEventListener('click', () => {
+          const name = row.dataset.manualStart;
+          const ex = findExerciseByName(name);
+          if (ex) { pendingStart = { ex, context: 'manual' }; startWorkout(ex); }
+        });
+      });
+    }).catch(err => {
+      box.innerHTML = `<div class="m-card"><p class="plan-muted">${esc(err.message)}</p></div>`;
+    });
+  }
 
-    const usr = await api('GET', '/profile');
-    document.getElementById('disp-streak').textContent = `🔥 ${usr.current_streak || 0} días`;
-
-    try {
-      const res = await api('GET', '/plan');
-      plan = res.owned ? res.plan : null;
-      document.getElementById('btn-plan').hidden = !res.owned;
-    } catch {
-      plan = null;
-      document.getElementById('btn-plan').hidden = true;
+  function findExerciseByName(name) {
+    if (!plan || !plan.rutina) return null;
+    for (const k of Object.keys(plan.rutina.bloques || {})) {
+      const found = (plan.rutina.bloques[k] || []).find(e => e.ejercicio === name);
+      if (found) return found;
     }
+    return null;
+  }
 
-    show('screen-dashboard');
-    await loadData();
-    renderGrid(activeFilter);
-    setupTabs();
-    setupFilters();
-    focusGrid(0);
+  function renderSeguimiento() {
+    const box = mtabContainers.seguimiento;
+    api('GET', '/tracking/summary').then(s => {
+      let html = `<div class="m-card">
+        <h3 class="m-title">📊 Hoy</h3>
+        <p>${s.today_workouts} entrenos · 🔥 racha ${s.streak} días</p>
+        <label>Peso actual (kg) <input type="number" id="weight-input" min="20" max="300" step="0.1" tabindex="0"></label>
+        <button class="btn-primary" id="weight-save" tabindex="0">Guardar peso</button>
+      </div>`;
+
+      if (s.workouts.length) {
+        html += `<div class="m-card"><h3 class="m-title">Últimos entrenos</h3>
+          ${s.workouts.map(w => `<div class="hist-row">${esc(w.date)} · ${esc(w.ejercicio)} ${w.sets ? w.sets + '×' : ''}${esc(w.reps || '')}</div>`).join('')}</div>`;
+      }
+      if (s.weight.length) {
+        html += `<div class="m-card"><h3 class="m-title">Peso reciente</h3>
+          ${s.weight.map(w => `<div class="hist-row">${esc(w.date)} · ${w.weight_kg} kg</div>`).join('')}</div>`;
+      }
+      box.innerHTML = html;
+      document.getElementById('weight-save').addEventListener('click', async () => {
+        const w = parseFloat(document.getElementById('weight-input').value);
+        if (w > 0) { await api('POST', '/tracking/weight', { weight_kg: w }); showResult('Peso guardado'); renderSeguimiento(); }
+      });
+    }).catch(err => {
+      box.innerHTML = `<div class="m-card"><p class="plan-muted">${esc(err.message)}</p></div>`;
+    });
+  }
+
+  function renderPerfil() {
+    const box = mtabContainers.perfil;
+    const u = currentUser;
+    if (!u) return;
+    box.innerHTML = `
+      <div class="m-card">
+        <h3 class="m-title">👤 ${esc(u.name)}</h3>
+        <p class="plan-muted">${esc(u.has_plan ? 'Tiene plan importado' : 'Sin plan importado')}</p>
+        <p class="plan-muted">Sexo: ${esc(u.sex)} · Objetivo: ${esc(u.goal)}${u.height_cm ? ` · ${u.height_cm} cm` : ''}${u.weight_kg ? ` · ${u.weight_kg} kg` : ''}</p>
+      </div>
+      <div class="m-card">
+        <h3 class="m-title">📄 Importar plan (rutina + alimentación)</h3>
+        <p class="plan-muted">Sube el archivo .json con tu plan. Los ejercicios se enlazan al catálogo de guías por nombre.</p>
+        <input type="file" id="plan-file" accept="application/json,.json" tabindex="0">
+        <button class="btn-primary" id="plan-upload" tabindex="0">Importar plan</button>
+        <p id="plan-status" class="muted" hidden></p>
+      </div>
+      <div class="m-card">
+        <h3 class="m-title">🌐 Modo</h3>
+        <button class="btn-secondary" id="switch-tv" tabindex="0">📺 Ver en TV</button>
+        <button class="btn-secondary" id="switch-movil" tabindex="0">📱 Ver en móvil</button>
+      </div>
+      <div class="m-card">
+        <button class="btn-secondary" id="btn-logout2" tabindex="0">Cerrar sesión</button>
+      </div>`;
+
+    document.getElementById('plan-upload').addEventListener('click', async () => {
+      const file = document.getElementById('plan-file').files[0];
+      const status = document.getElementById('plan-status');
+      status.hidden = false;
+      if (!file) { status.textContent = 'Elige un archivo JSON primero.'; return; }
+      try {
+        const text = await file.text();
+        const json = JSON.parse(text);
+        await api('PUT', '/profile/plan', json);
+        status.textContent = 'Plan importado correctamente ✓';
+        u.has_plan = true;
+      } catch (err) {
+        status.textContent = 'Error: ' + err.message;
+      }
+    });
+
+    document.getElementById('switch-tv').addEventListener('click', () => { mode = 'tv'; enterHome(); });
+    document.getElementById('switch-movil').addEventListener('click', () => { mode = 'movil'; enterHome(); });
+    const logout2 = document.getElementById('btn-logout2');
+    if (logout2) logout2.addEventListener('click', logout);
   }
 
   /* ---------- login ---------- */
+  document.getElementById('btn-show-register').addEventListener('click', () => {
+    show('screen-register'); document.getElementById('reg-name').focus();
+  });
+  document.getElementById('btn-show-login').addEventListener('click', () => {
+    show('screen-login'); document.getElementById('login-name').focus();
+  });
+
   document.getElementById('form-login').addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = document.getElementById('login-name').value.trim();
     const password = document.getElementById('login-password').value;
-
     try {
       const data = await api('POST', '/auth/login', { name, password });
-      token = data.token;
-      localStorage.setItem('gymbro-token', token);
-      await enterDashboard(data.user);
+      token = data.token; localStorage.setItem('gymbro-v2-token', token);
+      currentUser = data.user;
+      const chosen = await askMode();
+      mode = chosen;
+      await loadPlan();
+      enterHome();
     } catch (err) {
       showError('login-error', err.message);
     }
   });
 
-  document.getElementById('btn-show-register').addEventListener('click', () => {
-    show('screen-register');
-    document.getElementById('reg-name').focus();
-  });
-
-  /* ---------- register ---------- */
   document.getElementById('form-register').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const name = document.getElementById('reg-name').value.trim();
-    const password = document.getElementById('reg-password').value;
-    const sex = document.getElementById('reg-sex').value;
-    const height = parseFloat(document.getElementById('reg-height').value);
-    const weight = parseFloat(document.getElementById('reg-weight').value);
-    const goal = document.getElementById('reg-goal').value;
-
+    const body = {
+      name: document.getElementById('reg-name').value.trim(),
+      password: document.getElementById('reg-password').value,
+      sex: document.getElementById('reg-sex').value || undefined,
+      birth_year: document.getElementById('reg-birth').value || undefined,
+      height_cm: document.getElementById('reg-height').value || undefined,
+      weight_kg: document.getElementById('reg-weight').value || undefined,
+      goal: document.getElementById('reg-goal').value,
+      activity_level: document.getElementById('reg-activity').value,
+    };
     try {
-      const data = await api('POST', '/auth/register', { name, password, sex, height, weight, goal });
-      token = data.token;
-      localStorage.setItem('gymbro-token', token);
-      await enterDashboard(data.user);
+      const data = await api('POST', '/auth/register', body);
+      token = data.token; localStorage.setItem('gymbro-v2-token', token);
+      currentUser = data.user;
+      const chosen = await askMode();
+      mode = chosen;
+      await loadPlan();
+      enterHome();
     } catch (err) {
       showError('register-error', err.message);
     }
   });
 
-  document.getElementById('btn-show-login').addEventListener('click', () => {
+  function logout() {
+    token = null; currentUser = null; plan = null; pendingStart = null;
+    localStorage.removeItem('gymbro-v2-token');
+    Voice.stop();
     show('screen-login');
     document.getElementById('login-name').focus();
-  });
-
-  /* ---------- logout ---------- */
-  document.getElementById('btn-logout').addEventListener('click', () => {
-    token = null;
-    currentUser = null;
-    localStorage.removeItem('gymbro-token');
-    show('screen-login');
-    document.getElementById('login-name').focus();
-  });
-
-  /* ---------- profile ---------- */
-  document.getElementById('btn-profile').addEventListener('click', async () => {
-    try {
-      const user = await api('GET', '/profile');
-      document.getElementById('prof-name').textContent = `👤 ${user.name}`;
-      document.getElementById('prof-created').textContent = `Desde ${user.created_at?.slice(0, 10) || '-'}`;
-      document.getElementById('prof-sex').value = user.sex;
-      document.getElementById('prof-height').value = user.height;
-      document.getElementById('prof-weight').value = user.weight;
-      document.getElementById('prof-goal').value = user.goal;
-      show('screen-profile');
-      document.getElementById('prof-sex').focus();
-    } catch (err) {
-      showError('profile-error', err.message);
-    }
-  });
-
-  document.getElementById('form-profile').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const sex = document.getElementById('prof-sex').value;
-    const height = parseFloat(document.getElementById('prof-height').value);
-    const weight = parseFloat(document.getElementById('prof-weight').value);
-    const goal = document.getElementById('prof-goal').value;
-
-    try {
-      const user = await api('PUT', '/profile', { sex, height, weight, goal });
-      currentUser = user;
-      showSuccess('profile-success', 'Perfil actualizado');
-      document.getElementById('greeting').textContent = `Bienvenido, ${user.name}`;
-      document.getElementById('disp-level').textContent = `Nivel ${user.level}`;
-      document.getElementById('disp-points').textContent = `${user.points} XP`;
-    } catch (err) {
-      showError('profile-error', err.message);
-    }
-  });
-
-  document.getElementById('btn-profile-back').addEventListener('click', () => {
-    show('screen-dashboard');
-    focusGrid(0);
-  });
-
-  /* ---------- plan (Dake) ---------- */
-  const planContent = document.getElementById('plan-content');
-  const planTabs = document.querySelectorAll('[data-plan-tab]');
-
-  function esc(s) {
-    return String(s == null ? '' : s)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
+  const logoutBtns = [document.getElementById('btn-logout')];
+  logoutBtns.forEach(b => { if (b) b.addEventListener('click', logout); });
 
-  function renderPlan() {
-    if (!plan) {
-      planContent.innerHTML = '<p style="color:var(--muted)">No tienes ningún plan personalizado.</p>';
-      return;
-    }
-    if (planTab === 'rutina') renderPlanRutina();
-    else renderPlanNutricion();
-  }
+  /* ---------- modal (guide preview) ---------- */
+  const overlay = document.getElementById('overlay');
+  const modalTitle = document.getElementById('modal-title');
+  const modalGuideMedia = document.getElementById('modal-guide-media');
+  const modalGuideSteps = document.getElementById('modal-guide-steps');
+  const modalGuideWatch = document.getElementById('modal-guide-watch');
 
-  function renderPlanDayRow(line, i) {
-    const ex = line.exercise;
-    if (!ex) return '';
-    return `
-      <button class="plan-ex-row" data-plan-workout="${line.id}" tabindex="0">
-        <span class="routine-ex-num">${i + 1}</span>
-        <span class="routine-ex-icon">${ex.icon}</span>
-        <span class="routine-ex-name">${esc(ex.name)}</span>
-        <span class="routine-ex-dur">${esc(line.series)}×${esc(line.repeticiones)} · ${line.descanso_segundos}s</span>
-      </button>`;
-  }
+  document.getElementById('modal-close').addEventListener('click', () => { overlay.hidden = true; });
+  overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') overlay.hidden = true; });
 
-  function renderPlanDay(list) {
-    if (!list || !list.length) return '<p class="plan-muted">Sin ejercicios.</p>';
-    return list.map(renderPlanDayRow).join('');
-  }
-
-  function renderPlanRutina() {
-    const r = plan.rutina;
-    let html = `<div class="plan-section">
-      <h3 class="social-heading">🎯 Objetivo</h3>
-      <p>${esc(plan.objetivo.principal)}</p>
-      <p class="plan-muted">${esc(plan.objetivo.estrategia)} · ${esc(plan.objetivo.duracion_inicial)}</p>
-    </div>
-    <div class="plan-section">
-      <h3 class="social-heading">📅 Organización</h3>
-      <p>${esc(r.frecuencia)} — ${esc(r.distribucion)}</p>
-      <p class="plan-muted">${esc(r.duracion_aproximada_minutos)} por sesión · Intensidad: ${esc(r.intensidad)}</p>
-      <p class="plan-muted">Calentamiento: ${esc(r.calentamiento)}</p>
-      <p class="plan-muted">Actividad diaria: ${esc(r.actividad_diaria.pasos_objetivo)}${r.actividad_diaria.cardio ? ' · Cardio: ' + esc(r.actividad_diaria.cardio) : ''}</p>
-    </div>`;
-
-    let weekIdx = 0;
-    for (const week of r.semanas) {
-      weekIdx++;
-      const objetivo = week.objetivo ? `<span class="plan-chip">${esc(week.objetivo)}</span>` : '';
-      const cambios = week.cambios && week.cambios.length
-        ? `<div class="plan-muted"><strong>Semanas:</strong><ul>${week.cambios.map(c => `<li>${esc(c)}</li>`).join('')}</ul></div>`
-        : '';
-      const tempo = week.tempo_recomendado ? `<p class="plan-muted">Tempo: ${esc(week.tempo_recomendado)}</p>` : '';
-      const nota = week.nota ? `<p class="plan-muted">💡 ${esc(week.nota)}</p>` : '';
-      html += `<div class="plan-section plan-week">
-        <h3 class="social-heading">Semana ${weekIdx} ${objetivo}</h3>
-        ${tempo}${nota}${cambios}
-        <div class="plan-day"><span class="plan-day-label">Día A <small>(Lunes · Viernes)</small></span></div>
-        ${renderPlanDay(week.A)}
-        <div class="plan-day" style="margin-top:12px"><span class="plan-day-label">Día B <small>(Miércoles)</small></span></div>
-        ${renderPlanDay(week.B)}
-      </div>`;
-    }
-
-    html += `<div class="plan-section">
-      <h3 class="social-heading">📈 Progresión</h3>
-      <p class="plan-muted">${esc(r.progresion.regla)}</p>
-      <ol class="plan-list">${r.progresion.prioridad.map(p => `<li>${esc(p)}</li>`).join('')}</ol>
-    </div>`;
-
-    planContent.innerHTML = html;
-  }
-
-  function renderPlanNutricion() {
-    const n = plan.nutricion;
-    let html = `<div class="plan-section">
-      <h3 class="social-heading">🍽 Objetivos</h3>
-      <p>${esc(n.calorias_objetivo_diarias_kcal)} kcal/día · Proteína: ${esc(n.proteina_objetivo_diaria_g)} g</p>
-      <p class="plan-muted">Déficit estimado: ${esc(n.deficit_estimado_kcal)} · Pérdida esperada: ${esc(n.ritmo_objetivo_perdida_peso_kg_semana)} kg/semana</p>
-      <ul class="plan-list">${n.principios.map(p => `<li>${esc(p)}</li>`).join('')}</ul>
-    </div>
-    <div class="plan-section">
-      <h3 class="social-heading">📆 Menú semanal</h3>
-      <p class="plan-muted">${esc(n.nota_pesos)}</p>
-      ${n.dieta_7_dias.map(d => `
-        <div class="plan-menu-day">
-          <div class="plan-day-label">${esc(d.etiqueta)} <small>· ${d.kcal} kcal · ${esc(d.proteina)} g prot</small></div>
-          <p>☀️ <strong>Desayuno:</strong> ${esc(d.desayuno)}</p>
-          <p>🍽 <strong>Comida:</strong> ${esc(d.comida)}</p>
-          <p>🥜 <strong>Snack:</strong> ${esc(d.snack)}</p>
-          <p>🌙 <strong>Cena:</strong> ${esc(d.cena)}</p>
-        </div>`).join('')}
-    </div>
-    <div class="plan-section">
-      <h3 class="social-heading">🛒 Lista de la compra</h3>
-      ${Object.entries(n.lista_compra_semanal).map(([k, items]) => `
-        <div class="plan-sub"><strong>${esc(k)}</strong></div>
-        <ul class="plan-list">${items.map(i => `<li>${esc(i)}</li>`).join('')}</ul>`).join('')}
-    </div>
-    <div class="plan-section">
-      <h3 class="social-heading">👨‍🍳 Preparación</h3>
-      <p class="plan-muted">Batch cooking ${esc(n.preparacion_comidas.estrategia)} (máx. ${esc(n.preparacion_comidas.tiempo_maximo_por_cocinado_minutos)} min/sesión)</p>
-      ${Object.entries(n.preparacion_comidas).filter(([k]) => k !== 'estrategia' && k !== 'tiempo_maximo_por_cocinado_minutos').map(([k, v]) => `
-        <div class="plan-sub"><strong>${esc(k)}</strong></div>
-        <ul class="plan-list">${v.map(i => `<li>${esc(i)}</li>`).join('')}</ul>`).join('')}
-    </div>
-    <div class="plan-section">
-      <h3 class="social-heading">📊 Seguimiento y ajustes</h3>
-      <p class="plan-muted">Peso: ${esc(n.seguimiento.peso)} · Cintura: ${esc(n.seguimiento.cintura)} · Fotos: ${esc(n.seguimiento.fotos)}</p>
-      <ul class="plan-list">
-        <li>${esc(n.seguimiento.ajustes.perdida_esperada)}</li>
-        <li>${esc(n.seguimiento.ajustes.si_no_hay_perdida_durante_2_3_semanas)}</li>
-        <li>${esc(n.seguimiento.ajustes['si_se_pierde_mas_de_0.5kg_semana_y_baja_el_rendimiento'])}</li>
-        <li>${esc(n.seguimiento.ajustes.proteina)}</li>
-      </ul>
-    </div>
-    <div class="plan-section">
-      <h3 class="social-heading">💊 Suplementos</h3>
-      <p class="plan-muted">${esc(n.suplementos.recomendacion)}</p>
-    </div>`;
-    planContent.innerHTML = html;
-  }
-
-  document.getElementById('btn-plan').addEventListener('click', async () => {
-    try {
-      if (!plan) {
-        const res = await api('GET', '/plan');
-        plan = res.owned ? res.plan : null;
-      }
-      if (plan) renderPlan();
-      show('screen-plan');
-      document.querySelector('[data-plan-tab="rutina"]').classList.add('active');
-      document.querySelector('[data-plan-tab="nutricion"]').classList.remove('active');
-      document.getElementById('btn-plan-back').focus();
-    } catch (err) {
-      showError('plan-error', err.message);
-    }
-  });
-
-  document.getElementById('btn-plan-back').addEventListener('click', () => {
-    show('screen-dashboard');
-    focusGrid(0);
-  });
-
-  planTabs.forEach(btn => btn.addEventListener('click', () => {
-    planTab = btn.dataset.planTab;
-    planTabs.forEach(b => b.classList.toggle('active', b === btn));
-    if (plan) renderPlan();
-  }));
-
-  planContent.addEventListener('click', (e) => {
-    const row = e.target.closest('[data-plan-workout]');
-    if (!row || !plan) return;
-    const list = plan.rutina.semanas.map(w => [...w.A, ...w.B]).flat();
-    const line = list.find(l => l.id === Number(row.dataset.planWorkout));
-    if (line && line.exercise) {
-      startWorkout(line.exercise, false);
-    }
-  });
-
-  /* ---------- leaderboard ---------- */
-  document.getElementById('btn-leaderboard').addEventListener('click', async () => {
-    try {
-      const list = await api('GET', '/leaderboard?limit=50');
-      const container = document.getElementById('leaderboard-list');
-      container.innerHTML = `
-        <li class="leaderboard-row leaderboard-row--header">
-          <span>#</span><span>Nombre</span><span>Nivel</span><span>Puntos</span>
-        </li>`;
-      list.forEach((u, i) => {
-        const li = document.createElement('li');
-        li.className = 'leaderboard-row';
-        if (currentUser && u.name === currentUser.name) li.style.background = 'rgba(233,69,96,0.15)';
-        li.innerHTML = `<span>${i + 1}</span><span>${u.name}</span><span>${u.level}</span><span>${u.points}</span>`;
-        container.appendChild(li);
-      });
-      show('screen-leaderboard');
-      document.getElementById('btn-leaderboard-back').focus();
-    } catch (err) {
-      console.error(err);
-    }
-  });
-
-  document.getElementById('btn-leaderboard-back').addEventListener('click', () => {
-    show('screen-dashboard');
-    focusGrid(0);
-  });
-
-  /* ---------- history ---------- */
-  document.getElementById('btn-history').addEventListener('click', async () => {
-    try {
-      const [history, stats] = await Promise.all([
-        api('GET', '/profile/history?limit=50'),
-        api('GET', '/profile/stats'),
-      ]);
-
-      document.getElementById('history-stats').innerHTML = `
-        <div class="history-stat">
-          <span class="history-stat-value">${stats.total_workouts}</span>
-          <span class="history-stat-label">Entrenos</span>
-        </div>
-        <div class="history-stat">
-          <span class="history-stat-value">${stats.total_minutes}</span>
-          <span class="history-stat-label">Minutos</span>
-        </div>
-        <div class="history-stat">
-          <span class="history-stat-value">${stats.total_xp}</span>
-          <span class="history-stat-label">XP total</span>
-        </div>
-        <div class="history-stat">
-          <span class="history-stat-value">🔥${stats.current_streak}</span>
-          <span class="history-stat-label">Racha</span>
-        </div>
-      `;
-
-      const container = document.getElementById('history-list');
-      container.innerHTML = history.length
-        ? history.map(h => {
-            const date = h.completed_at ? h.completed_at.slice(0, 10) : '';
-            let detail = '';
-            if (h.reps) {
-              detail = `<span class="history-item-detail">${h.sets || 1}×${h.reps}${h.weight_kg ? ` · ${h.weight_kg} kg` : ''}</span>`;
-            }
-            return `
-              <div class="history-item">
-                <span class="history-item-icon">${h.icon}</span>
-                <span class="history-item-name">${h.name}</span>
-                ${detail}
-                <span class="history-item-points">+${h.points} XP</span>
-                <span class="history-item-date">${date}</span>
-              </div>`;
-          }).join('')
-        : '<p style="color:var(--muted);text-align:center">Aún no has realizado ningún entrenamiento.</p>';
-
-      show('screen-history');
-      document.getElementById('btn-history-back').focus();
-    } catch (err) {
-      console.error(err);
-    }
-  });
-
-  document.getElementById('btn-history-back').addEventListener('click', () => {
-    show('screen-dashboard');
-    focusGrid(0);
-  });
-
-  /* ---------- achievements ---------- */
-  document.getElementById('btn-achievements').addEventListener('click', async () => {
-    try {
-      const [all, earned] = await Promise.all([
-        api('GET', '/achievements'),
-        api('GET', '/achievements/mine'),
-      ]);
-      const earnedMap = {};
-      earned.forEach(e => { earnedMap[e.id] = e.earned_at; });
-
-      const grid = document.getElementById('achievements-grid');
-      grid.innerHTML = all.map(a => {
-        const earnedAt = earnedMap[a.id];
-        const cls = earnedAt ? 'earned' : 'locked';
-        const dateHtml = earnedAt ? `<span class="achievement-date">✓ ${earnedAt.slice(0, 10)}</span>` : '';
-        return `<div class="achievement-card ${cls}">
-          <span class="achievement-icon">${a.icon}</span>
-          <span class="achievement-name">${a.name}</span>
-          <span class="achievement-desc">${a.description}</span>
-          ${dateHtml}
-        </div>`;
-      }).join('');
-
-      show('screen-achievements');
-      document.getElementById('btn-achievements-back').focus();
-    } catch (err) {
-      console.error(err);
-    }
-  });
-
-  document.getElementById('btn-achievements-back').addEventListener('click', () => {
-    show('screen-dashboard');
-    focusGrid(0);
-  });
-
-  /* ---------- social ---------- */
-  let socialChTab = 'active';
-
-  const metricLabels = {
-    first_to_xp: 'Primero en X XP',
-    total_workouts: 'Más workouts',
-    best_streak: 'Mejor racha',
-  };
-
-  function socialError(err) {
-    showError('social-error', err.message || 'Error');
-  }
-
-  async function renderSocial() {
-    try {
-      const [requests, friends, challenges] = await Promise.all([
-        api('GET', '/social/friends/requests'),
-        api('GET', '/social/friends'),
-        api('GET', '/social/challenges'),
-      ]);
-      renderSocialRequests(requests);
-      renderSocialFriends(friends);
-      renderChallengeSelectOptions(friends);
-      renderChallenges(challenges);
-      show('screen-social');
-      document.getElementById('social-search').focus();
-    } catch (err) {
-      socialError(err);
-    }
-  }
-
-  function renderSocialRequests(list) {
-    const box = document.getElementById('social-requests');
-    if (!list.length) {
-      box.innerHTML = '<p class="social-empty">Sin solicitudes pendientes.</p>';
-      return;
-    }
-    box.innerHTML = list.map(r => `
-      <div class="social-item">
-        <span class="social-item-name">${r.name}</span>
-        <button class="btn-primary" data-respond="${r.request_id}" data-action="accept" tabindex="0">Aceptar</button>
-        <button class="btn-secondary" data-respond="${r.request_id}" data-action="decline" tabindex="0">Rechazar</button>
-      </div>`).join('');
-  }
-
-  function renderSocialFriends(list) {
-    const box = document.getElementById('social-friends');
-    if (!list.length) {
-      box.innerHTML = `<p class="social-empty">Aún no tienes amigos.</p>`;
-      return;
-    }
-    box.innerHTML = list.map(f => `
-      <div class="social-item">
-        <span class="social-item-name" data-view-friend="${f.friend_id}" tabindex="0">${f.name}</span>
-        <span class="social-item-meta">Nv ${f.level} · ${f.points} XP</span>
-        <button class="btn-secondary" data-unfriend="${f.friend_id}" tabindex="0">Eliminar</button>
-      </div>`).join('');
-  }
-
-  function renderChallengeSelectOptions(friends) {
-    const sel = document.getElementById('social-challenge-friend');
-    sel.innerHTML = friends.length
-      ? friends.map(f => `<option value="${f.friend_id}">${f.name}</option>`).join('')
-      : '<option value="">Sin amigos</option>';
-  }
-
-  function renderChallenges(list) {
-    const filtered = list.filter(c => {
-      if (socialChTab === 'completed') return c.status === 'completed';
-      if (socialChTab === 'pending') return c.status === 'pending' || c.status === 'declined';
-      return c.status === 'active';
-    });
-    const box = document.getElementById('social-challenges');
-    if (!filtered.length) {
-      box.innerHTML = `<p class="social-empty">Sin desafíos en esta vista.</p>`;
-      return;
-    }
-    box.innerHTML = filtered.map(c => {
-      const opp = c.status === 'completed' ? (c.winner_id === c.challenger.id ? c.challenger : c.opponent) : null;
-      const a = c.progress[c.challenger.id] || { value: 0 };
-      const b = c.progress[c.opponent.id] || { value: 0 };
-      const header = `${c.challenger.name} vs ${c.opponent.name} · ${metricLabels[c.metric]}${c.target ? ` · ${c.target} XP` : ''}`;
-      let body = '';
-
-      if (c.status === 'pending') {
-        body = `
-          <div class="social-ch-body">
-            <span>Te ha retado ${c.challenger.name}</span>
-            <button class="btn-primary" data-ch-respond="${c.id}" data-action="accept" tabindex="0">Aceptar</button>
-            <button class="btn-secondary" data-ch-respond="${c.id}" data-action="decline" tabindex="0">Rechazar</button>
-          </div>`;
-      } else if (c.status === 'active') {
-        body = `
-          <div class="social-ch-body">
-            <div class="progress-row"><span>${c.challenger.name}</span><span>${a.value}${c.metric === 'first_to_xp' ? ` / ${c.target} XP` : ''}</span></div>
-            <div class="progress-row"><span>${c.opponent.name}</span><span>${b.value}${c.metric === 'first_to_xp' ? ` / ${c.target} XP` : ''}</span></div>
-          </div>`;
-      } else if (c.status === 'completed') {
-        body = `<div class="social-ch-body"><span class="winner-badge">🏆 Gana: ${opp ? opp.name : 'Empate'}</span></div>`;
-      } else {
-        body = `<div class="social-ch-body"><span>Rechazado</span></div>`;
-      }
-
-      return `<div class="social-item social-challenge">
-        <span class="social-item-name">${header}</span>
-        ${body}
-      </div>`;
-    }).join('');
-  }
-
-  function renderUserProfile(user) {
-    const box = document.getElementById('social-search-results');
-    box.innerHTML = `
-      <div class="public-profile">
-        <h3>${user.name}</h3>
-        <p>Nivel ${user.level} · ${user.points} XP</p>
-        ${user.goal ? `<p>Objetivo: ${user.goal.replace('_', ' ')}</p>` : ''}
-        ${user.sex ? `<p>Sexo: ${user.sex}</p>` : ''}
-        ${user.total_workouts !== undefined ? `<p>Entrenos: ${user.total_workouts} · ${user.total_minutes} min · ${user.total_xp} XP</p>` : ''}
-        ${user.current_streak !== undefined ? `<p>🔥 Racha actual: ${user.current_streak || 0} días</p>` : ''}
-      </div>`;
-  }
-
-  document.getElementById('btn-social').addEventListener('click', () => {
-    renderSocial();
-  });
-
-  document.getElementById('btn-social-back').addEventListener('click', () => {
-    show('screen-dashboard');
-    focusGrid(0);
-  });
-
-  document.getElementById('social-search-btn').addEventListener('click', async () => {
-    const q = document.getElementById('social-search').value.trim();
-    if (!q) return;
-    try {
-      const results = await api('GET', `/social/users/search?q=${encodeURIComponent(q)}`);
-      const box = document.getElementById('social-search-results');
-      if (!results.length) {
-        box.innerHTML = `<p class="social-empty">Sin resultados.</p>`;
-        return;
-      }
-      box.innerHTML = results.map(u => `
-        <div class="social-item">
-          <span class="social-item-name">${u.name}</span>
-          <span class="social-item-meta">Nv ${u.level} · ${u.points} XP</span>
-          <button class="btn-primary" data-add-friend="${u.id}" tabindex="0">Agregar</button>
-        </div>`).join('');
-    } catch (err) {
-      socialError(err);
-    }
-  });
-
-  document.addEventListener('click', async (e) => {
-    const addBtn = e.target.closest('[data-add-friend]');
-    if (addBtn) {
-      try {
-        await api('POST', `/social/friends/${addBtn.dataset.addFriend}`);
-        await renderSocial();
-      } catch (err) {
-        socialError(err);
-      }
-    }
-
-    const resp = e.target.closest('[data-respond]');
-    if (resp) {
-      try {
-        await api('POST', `/social/friends/requests/${resp.dataset.respond}/respond`, { action: resp.dataset.action });
-        await renderSocial();
-      } catch (err) {
-        socialError(err);
-      }
-    }
-
-    const unfriend = e.target.closest('[data-unfriend]');
-    if (unfriend) {
-      try {
-        await api('DELETE', `/social/friends/${unfriend.dataset.unfriend}`);
-        await renderSocial();
-      } catch (err) {
-        socialError(err);
-      }
-    }
-
-    const viewFriend = e.target.closest('[data-view-friend]');
-    if (viewFriend) {
-      try {
-        const profile = await api('GET', `/social/users/${viewFriend.dataset.viewFriend}`);
-        renderUserProfile(profile);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      } catch (err) {
-        socialError(err);
-      }
-    }
-
-    const chResp = e.target.closest('[data-ch-respond]');
-    if (chResp) {
-      try {
-        await api('POST', `/social/challenges/${chResp.dataset.chRespond}/respond`, { action: chResp.dataset.action });
-        await renderSocial();
-      } catch (err) {
-        socialError(err);
-      }
-    }
-  });
-
-  document.getElementById('social-challenge-send').addEventListener('click', async () => {
-    const opponentId = document.getElementById('social-challenge-friend').value;
-    const metric = document.getElementById('social-challenge-metric').value;
-    const target = parseInt(document.getElementById('social-challenge-target').value, 10);
-    const durationDays = parseInt(document.getElementById('social-challenge-days').value, 10) || 7;
-    if (!opponentId) return socialError(new Error('Elige un amigo'));
-    if (metric === 'first_to_xp' && (!target || target <= 0)) return socialError(new Error('Indica el XP objetivo'));
-
-    try {
-      await api('POST', '/social/challenges', { opponentId, metric, target, durationDays });
-      await renderSocial();
-    } catch (err) {
-      socialError(err);
-    }
-  });
-
-  document.querySelector('.social-tabs').addEventListener('click', (e) => {
-    const btn = e.target.closest('.btn-filter');
-    if (!btn) return;
-    document.querySelectorAll('.social-tabs .btn-filter').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    socialChTab = btn.dataset.chTab;
-    renderChallengesFromServer();
-  });
-
-  async function renderChallengesFromServer() {
-    try {
-      const list = await api('GET', '/social/challenges');
-      renderChallenges(list);
-    } catch (err) {
-      socialError(err);
-    }
-  }
-
-  /* ---------- keyboard nav ---------- */
-  function focusGrid(idx) {
-    const visibleCards = document.querySelectorAll('#screen-dashboard:not([hidden]) .card');
-    if (!visibleCards.length) return;
-    focusIndex = ((idx % visibleCards.length) + visibleCards.length) % visibleCards.length;
-    visibleCards[focusIndex].focus();
-  }
-
+  /* ---------- keyboard (TV) ---------- */
   document.addEventListener('keydown', (e) => {
-    if (!overlay.hidden || !resultOverlay.hidden) return;
-
-    const currentScreen = document.querySelector('.screen:not([hidden])');
-    if (!currentScreen) return;
-
-    const id = currentScreen.id;
-
-    if (id === 'screen-dashboard') {
-      const cols = 3;
-      switch (e.key) {
-        case 'ArrowRight': e.preventDefault(); focusGrid(focusIndex + 1); break;
-        case 'ArrowLeft':  e.preventDefault(); focusGrid(focusIndex - 1); break;
-        case 'ArrowDown':  e.preventDefault(); focusGrid(focusIndex + cols); break;
-        case 'ArrowUp':    e.preventDefault(); focusGrid(focusIndex - cols); break;
-        case 'Enter':
-        case ' ':
-          e.preventDefault();
-          const active = document.activeElement;
-          if (active && active.classList.contains('card')) active.click();
-          break;
+    if (!overlay.hidden || !resultOverlay.hidden || !modeOverlay.hidden) return;
+    if (mode !== 'tv') return;
+    const visible = document.querySelectorAll('.tv-home:not([hidden]) .tv-ex-card, .tv-home:not([hidden]) .tv-bloque-card');
+    if (visible.length) {
+      const current = Array.prototype.indexOf.call(visible, document.activeElement);
+      if (current === -1) return;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault(); visible[(current + 1) % visible.length].focus();
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault(); visible[(current - 1 + visible.length) % visible.length].focus();
+      } else if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+        e.preventDefault(); document.activeElement.click();
       }
     }
   });
 
   /* ---------- init ---------- */
+  Voice.init();
   (async function init() {
-    const ok = await restoreSession();
-    if (ok) {
-      await enterDashboard(currentUser);
-    } else {
+    if (!token) { show('screen-login'); return; }
+    try {
+      currentUser = await api('GET', '/profile');
+      const chosen = await askMode();
+      mode = chosen;
+      await loadPlan();
+      enterHome();
+    } catch {
+      token = null; localStorage.removeItem('gymbro-v2-token');
       show('screen-login');
-      document.getElementById('login-name').focus();
     }
   })();
 })();

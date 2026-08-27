@@ -1,62 +1,84 @@
 const { Router } = require('express');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const db = require('../db');
-const { validateRegister } = require('./validation');
+const { sign } = require('./middleware');
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'gymbro-dev-secret';
+
+const GOALS = ['lose', 'maintain', 'gain'];
+const ACTIVITY = ['sedentary', 'light', 'active', 'very_active'];
+const SEX = ['male', 'female', 'other'];
+
+function parseJson(str, fallback) {
+  if (str == null || str === '') return fallback;
+  try { return JSON.parse(str); } catch { return fallback; }
+}
+
+// Serializa un usuario a su forma pública (sin password, con campos parseados).
+function publicUser(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    role: row.role,
+    sex: row.sex,
+    birth_year: row.birth_year,
+    height_cm: row.height_cm,
+    weight_kg: row.weight_kg,
+    goal: row.goal,
+    activity_level: row.activity_level,
+    equipment: parseJson(row.equipment, {}),
+    allergies: parseJson(row.allergies, []),
+    has_plan: !!row.plan,
+    created_at: row.created_at,
+  };
+}
 
 router.post('/register', (req, res) => {
-  const { password, sex, height, weight, goal } = req.body;
+  const {
+    name, password, sex, birth_year, height_cm, weight_kg,
+    goal = 'maintain', activity_level = 'light', equipment, allergies,
+  } = req.body || {};
 
-  const errors = validateRegister(req.body);
-  if (Object.keys(errors).length > 0) {
-    return res.status(400).json({ error: Object.values(errors)[0] });
-  }
+  const uname = String(name || '').trim();
+  if (uname.length < 2) return res.status(400).json({ error: 'El nombre debe tener al menos 2 caracteres' });
+  if (!password || String(password).length < 4) return res.status(400).json({ error: 'La contraseña debe tener al menos 4 caracteres' });
+  if (sex && !SEX.includes(sex)) return res.status(400).json({ error: 'Sexo inválido' });
+  if (!GOALS.includes(goal)) return res.status(400).json({ error: 'Objetivo inválido' });
+  if (!ACTIVITY.includes(activity_level)) return res.status(400).json({ error: 'Nivel de actividad inválido' });
 
-  const name = req.body.name.trim();
+  const exists = db.prepare('SELECT id FROM users WHERE name = ?').get(uname);
+  if (exists) return res.status(409).json({ error: 'Ese nombre de usuario ya existe' });
 
-  const exists = db.prepare('SELECT id FROM users WHERE name = ?').get(name);
-  if (exists) {
-    return res.status(409).json({ error: 'El nombre de usuario ya existe' });
-  }
-
-  const hash = bcrypt.hashSync(password, 10);
-
-  const stmt = db.prepare(
-    'INSERT INTO users (name, password, sex, height, weight, goal) VALUES (?, ?, ?, ?, ?, ?)'
+  const hash = bcrypt.hashSync(String(password), 10);
+  const info = db.prepare(
+    `INSERT INTO users (name, password, sex, birth_year, height_cm, weight_kg, goal, activity_level, equipment, allergies)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    uname, hash,
+    sex || 'other',
+    birth_year != null ? Number(birth_year) || null : null,
+    height_cm != null ? Number(height_cm) || null : null,
+    weight_kg != null ? Number(weight_kg) || null : null,
+    goal, activity_level,
+    JSON.stringify(equipment != null ? equipment : {}),
+    JSON.stringify(allergies != null ? allergies : [])
   );
-  const result = stmt.run(name, hash, sex, height, weight, goal);
 
-  const token = jwt.sign({ id: result.lastInsertRowid, name }, JWT_SECRET, { expiresIn: '30d' });
-
-  res.status(201).json({
-    token,
-    user: { id: result.lastInsertRowid, name, sex, height, weight, goal, points: 0, level: 1 }
-  });
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
+  res.status(201).json({ token: sign({ id: user.id, name: user.name }), user: publicUser(user) });
 });
 
 router.post('/login', (req, res) => {
-  const { name, password } = req.body;
+  const { name, password } = req.body || {};
+  const uname = String(name || '').trim();
+  if (!uname || !password) return res.status(400).json({ error: 'Nombre y contraseña requeridos' });
 
-  if (!name || !password) {
-    return res.status(400).json({ error: 'Nombre y contraseña requeridos' });
+  const user = db.prepare('SELECT * FROM users WHERE name = ?').get(uname);
+  if (!user || !bcrypt.compareSync(String(password), user.password)) {
+    return res.status(401).json({ error: 'Credenciales incorrectas' });
   }
 
-  const user = db.prepare('SELECT * FROM users WHERE name = ?').get(name);
-  if (!user) {
-    return res.status(401).json({ error: 'Credenciales inválidas' });
-  }
-
-  if (!bcrypt.compareSync(password, user.password)) {
-    return res.status(401).json({ error: 'Credenciales inválidas' });
-  }
-
-  const token = jwt.sign({ id: user.id, name: user.name }, JWT_SECRET, { expiresIn: '30d' });
-
-  const { password: _, ...safe } = user;
-  res.json({ token, user: safe });
+  res.json({ token: sign({ id: user.id, name: user.name }), user: publicUser(user) });
 });
 
 module.exports = router;
