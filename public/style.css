@@ -997,6 +997,92 @@ select option {
   display: none;
 }
 
+/* -------- Plan (Dake) ---------- */
+.plan-tabs {
+  display: flex;
+  gap: 0.6rem;
+  margin: 1rem 0;
+}
+
+.plan-section {
+  background: var(--bg);
+  border-radius: 14px;
+  padding: 1rem 1.3rem;
+  margin-bottom: 1rem;
+}
+
+.plan-week {
+  border: 1px solid var(--primary);
+}
+
+.plan-chip {
+  display: inline-block;
+  background: rgba(233, 69, 96, 0.15);
+  color: var(--primary);
+  border-radius: 999px;
+  padding: 0.1rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.plan-muted {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.plan-list {
+  margin: 0.3rem 0;
+  padding-left: 1.2rem;
+  line-height: 1.5;
+}
+
+.plan-sub {
+  text-transform: capitalize;
+  margin-top: 0.6rem;
+}
+
+.plan-day-label {
+  font-weight: 700;
+  color: var(--text);
+  margin: 0.1rem 0 0.4rem;
+}
+
+.plan-day-label small {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.plan-ex-row {
+  display: grid;
+  grid-template-columns: 2rem 2rem 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0.6rem 0.2rem;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.plan-ex-row:hover {
+  background: rgba(233, 69, 96, 0.08);
+}
+
+.plan-menu-day {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0.7rem 0;
+}
+
+.plan-menu-day p {
+  margin: 0.2rem 0;
+  font-size: 0.9rem;
+}
+
 /* -------- Responsive ---------- */
 @media (max-width: 900px) {
   body {

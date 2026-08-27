@@ -15,6 +15,8 @@
   let routineExerciseIndex = 0;
   let routineTotalPoints = 0;
   let routineCompletedDuration = 0;
+  let plan = null;
+  let planTab = 'rutina';
 
   /* ---------- helpers ---------- */
   async function api(method, path, body) {
@@ -568,6 +570,15 @@
     const usr = await api('GET', '/profile');
     document.getElementById('disp-streak').textContent = `🔥 ${usr.current_streak || 0} días`;
 
+    try {
+      const res = await api('GET', '/plan');
+      plan = res.owned ? res.plan : null;
+      document.getElementById('btn-plan').hidden = !res.owned;
+    } catch {
+      plan = null;
+      document.getElementById('btn-plan').hidden = true;
+    }
+
     show('screen-dashboard');
     await loadData();
     renderGrid(activeFilter);
@@ -670,6 +681,172 @@
   document.getElementById('btn-profile-back').addEventListener('click', () => {
     show('screen-dashboard');
     focusGrid(0);
+  });
+
+  /* ---------- plan (Dake) ---------- */
+  const planContent = document.getElementById('plan-content');
+  const planTabs = document.querySelectorAll('[data-plan-tab]');
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function renderPlan() {
+    if (!plan) {
+      planContent.innerHTML = '<p style="color:var(--muted)">No tienes ningún plan personalizado.</p>';
+      return;
+    }
+    if (planTab === 'rutina') renderPlanRutina();
+    else renderPlanNutricion();
+  }
+
+  function renderPlanDayRow(line, i) {
+    const ex = line.exercise;
+    if (!ex) return '';
+    return `
+      <button class="plan-ex-row" data-plan-workout="${line.id}" tabindex="0">
+        <span class="routine-ex-num">${i + 1}</span>
+        <span class="routine-ex-icon">${ex.icon}</span>
+        <span class="routine-ex-name">${esc(ex.name)}</span>
+        <span class="routine-ex-dur">${esc(line.series)}×${esc(line.repeticiones)} · ${line.descanso_segundos}s</span>
+      </button>`;
+  }
+
+  function renderPlanDay(list) {
+    if (!list || !list.length) return '<p class="plan-muted">Sin ejercicios.</p>';
+    return list.map(renderPlanDayRow).join('');
+  }
+
+  function renderPlanRutina() {
+    const r = plan.rutina;
+    let html = `<div class="plan-section">
+      <h3 class="social-heading">🎯 Objetivo</h3>
+      <p>${esc(plan.objetivo.principal)}</p>
+      <p class="plan-muted">${esc(plan.objetivo.estrategia)} · ${esc(plan.objetivo.duracion_inicial)}</p>
+    </div>
+    <div class="plan-section">
+      <h3 class="social-heading">📅 Organización</h3>
+      <p>${esc(r.frecuencia)} — ${esc(r.distribucion)}</p>
+      <p class="plan-muted">${esc(r.duracion_aproximada_minutos)} por sesión · Intensidad: ${esc(r.intensidad)}</p>
+      <p class="plan-muted">Calentamiento: ${esc(r.calentamiento)}</p>
+      <p class="plan-muted">Actividad diaria: ${esc(r.actividad_diaria.pasos_objetivo)}${r.actividad_diaria.cardio ? ' · Cardio: ' + esc(r.actividad_diaria.cardio) : ''}</p>
+    </div>`;
+
+    let weekIdx = 0;
+    for (const week of r.semanas) {
+      weekIdx++;
+      const objetivo = week.objetivo ? `<span class="plan-chip">${esc(week.objetivo)}</span>` : '';
+      const cambios = week.cambios && week.cambios.length
+        ? `<div class="plan-muted"><strong>Semanas:</strong><ul>${week.cambios.map(c => `<li>${esc(c)}</li>`).join('')}</ul></div>`
+        : '';
+      const tempo = week.tempo_recomendado ? `<p class="plan-muted">Tempo: ${esc(week.tempo_recomendado)}</p>` : '';
+      const nota = week.nota ? `<p class="plan-muted">💡 ${esc(week.nota)}</p>` : '';
+      html += `<div class="plan-section plan-week">
+        <h3 class="social-heading">Semana ${weekIdx} ${objetivo}</h3>
+        ${tempo}${nota}${cambios}
+        <div class="plan-day"><span class="plan-day-label">Día A <small>(Lunes · Viernes)</small></span></div>
+        ${renderPlanDay(week.A)}
+        <div class="plan-day" style="margin-top:12px"><span class="plan-day-label">Día B <small>(Miércoles)</small></span></div>
+        ${renderPlanDay(week.B)}
+      </div>`;
+    }
+
+    html += `<div class="plan-section">
+      <h3 class="social-heading">📈 Progresión</h3>
+      <p class="plan-muted">${esc(r.progresion.regla)}</p>
+      <ol class="plan-list">${r.progresion.prioridad.map(p => `<li>${esc(p)}</li>`).join('')}</ol>
+    </div>`;
+
+    planContent.innerHTML = html;
+  }
+
+  function renderPlanNutricion() {
+    const n = plan.nutricion;
+    let html = `<div class="plan-section">
+      <h3 class="social-heading">🍽 Objetivos</h3>
+      <p>${esc(n.calorias_objetivo_diarias_kcal)} kcal/día · Proteína: ${esc(n.proteina_objetivo_diaria_g)} g</p>
+      <p class="plan-muted">Déficit estimado: ${esc(n.deficit_estimado_kcal)} · Pérdida esperada: ${esc(n.ritmo_objetivo_perdida_peso_kg_semana)} kg/semana</p>
+      <ul class="plan-list">${n.principios.map(p => `<li>${esc(p)}</li>`).join('')}</ul>
+    </div>
+    <div class="plan-section">
+      <h3 class="social-heading">📆 Menú semanal</h3>
+      <p class="plan-muted">${esc(n.nota_pesos)}</p>
+      ${n.dieta_7_dias.map(d => `
+        <div class="plan-menu-day">
+          <div class="plan-day-label">${esc(d.etiqueta)} <small>· ${d.kcal} kcal · ${esc(d.proteina)} g prot</small></div>
+          <p>☀️ <strong>Desayuno:</strong> ${esc(d.desayuno)}</p>
+          <p>🍽 <strong>Comida:</strong> ${esc(d.comida)}</p>
+          <p>🥜 <strong>Snack:</strong> ${esc(d.snack)}</p>
+          <p>🌙 <strong>Cena:</strong> ${esc(d.cena)}</p>
+        </div>`).join('')}
+    </div>
+    <div class="plan-section">
+      <h3 class="social-heading">🛒 Lista de la compra</h3>
+      ${Object.entries(n.lista_compra_semanal).map(([k, items]) => `
+        <div class="plan-sub"><strong>${esc(k)}</strong></div>
+        <ul class="plan-list">${items.map(i => `<li>${esc(i)}</li>`).join('')}</ul>`).join('')}
+    </div>
+    <div class="plan-section">
+      <h3 class="social-heading">👨‍🍳 Preparación</h3>
+      <p class="plan-muted">Batch cooking ${esc(n.preparacion_comidas.estrategia)} (máx. ${esc(n.preparacion_comidas.tiempo_maximo_por_cocinado_minutos)} min/sesión)</p>
+      ${Object.entries(n.preparacion_comidas).filter(([k]) => k !== 'estrategia' && k !== 'tiempo_maximo_por_cocinado_minutos').map(([k, v]) => `
+        <div class="plan-sub"><strong>${esc(k)}</strong></div>
+        <ul class="plan-list">${v.map(i => `<li>${esc(i)}</li>`).join('')}</ul>`).join('')}
+    </div>
+    <div class="plan-section">
+      <h3 class="social-heading">📊 Seguimiento y ajustes</h3>
+      <p class="plan-muted">Peso: ${esc(n.seguimiento.peso)} · Cintura: ${esc(n.seguimiento.cintura)} · Fotos: ${esc(n.seguimiento.fotos)}</p>
+      <ul class="plan-list">
+        <li>${esc(n.seguimiento.ajustes.perdida_esperada)}</li>
+        <li>${esc(n.seguimiento.ajustes.si_no_hay_perdida_durante_2_3_semanas)}</li>
+        <li>${esc(n.seguimiento.ajustes.si_se_pierde_mas_de_0.5kg_semana_y_baja_el_rendimiento)}</li>
+        <li>${esc(n.seguimiento.ajustes.proteina)}</li>
+      </ul>
+    </div>
+    <div class="plan-section">
+      <h3 class="social-heading">💊 Suplementos</h3>
+      <p class="plan-muted">${esc(n.suplementos.recomendacion)}</p>
+    </div>`;
+    planContent.innerHTML = html;
+  }
+
+  document.getElementById('btn-plan').addEventListener('click', async () => {
+    try {
+      if (!plan) {
+        const res = await api('GET', '/plan');
+        plan = res.owned ? res.plan : null;
+      }
+      if (plan) renderPlan();
+      show('screen-plan');
+      document.querySelector('[data-plan-tab="rutina"]').classList.add('active');
+      document.querySelector('[data-plan-tab="nutricion"]').classList.remove('active');
+      document.getElementById('btn-plan-back').focus();
+    } catch (err) {
+      showError('plan-error', err.message);
+    }
+  });
+
+  document.getElementById('btn-plan-back').addEventListener('click', () => {
+    show('screen-dashboard');
+    focusGrid(0);
+  });
+
+  planTabs.forEach(btn => btn.addEventListener('click', () => {
+    planTab = btn.dataset.planTab;
+    planTabs.forEach(b => b.classList.toggle('active', b === btn));
+    if (plan) renderPlan();
+  }));
+
+  planContent.addEventListener('click', (e) => {
+    const row = e.target.closest('[data-plan-workout]');
+    if (!row || !plan) return;
+    const list = plan.rutina.semanas.map(w => [...w.A, ...w.B]).flat();
+    const line = list.find(l => l.id === Number(row.dataset.planWorkout));
+    if (line && line.exercise) {
+      startWorkout(line.exercise, false);
+    }
   });
 
   /* ---------- leaderboard ---------- */

@@ -90,6 +90,23 @@ if (count.n === 0) {
   tx();
 }
 
+// Ejercicios de mancuernas (plan de Dake). Se insertan con id fijo si no existen,
+// para que instalaciones ya creadas también los reciban.
+const NEW_EXERCISES = [
+  { id: 31, name: 'Sentadilla búlgara',      desc: 'Split squat con el pie trasero elevado, sujetando mancuernas.',           icon: '🦵', unit: 'reps', difficulty: 'intermediate', category: 'strength', points: 100 },
+  { id: 32, name: 'Press de suelo',          desc: 'Press de pecho con mancuernas tumbado en el suelo.',                      icon: '🏋️', unit: 'reps', difficulty: 'intermediate', category: 'strength', points: 90 },
+  { id: 33, name: 'Remo unilateral',         desc: 'Remo con un brazo inclinado sobre una mancuerna.',                        icon: '💪', unit: 'reps', difficulty: 'beginner',     category: 'strength', points: 85 },
+  { id: 34, name: 'Peso muerto rumano',      desc: 'Bisagra de cadera con mancuernas trabajando la cadena posterior.',        icon: '🏋️', unit: 'reps', difficulty: 'intermediate', category: 'strength', points: 95 },
+  { id: 35, name: 'Elevaciones laterales',   desc: 'Eleva los brazos a los lados para trabajar el hombro lateral.',           icon: '💪', unit: 'reps', difficulty: 'beginner',     category: 'strength', points: 70 },
+  { id: 36, name: 'Curl de bíceps',          desc: 'Flexión de codo con mancuernas para trabajar el bíceps.',                 icon: '💪', unit: 'reps', difficulty: 'beginner',     category: 'strength', points: 65 },
+  { id: 37, name: 'Extensión de tríceps',    desc: 'Extensión del codo por encima de la cabeza con mancuerna.',               icon: '💪', unit: 'reps', difficulty: 'beginner',     category: 'strength', points: 65 },
+  { id: 38, name: 'Sentadilla goblet',       desc: 'Sentadilla sosteniendo una mancuerna contra el pecho.',                  icon: '🦵', unit: 'reps', difficulty: 'beginner',     category: 'strength', points: 75 },
+  { id: 39, name: 'Press militar',           desc: 'Press de hombro con mancuernas de pie.',                                  icon: '🏋️', unit: 'reps', difficulty: 'intermediate', category: 'strength', points: 90 },
+  { id: 40, name: 'Remo con 2 mancuernas',   desc: 'Remo de espalda con dos mancuernas inclinado.',                           icon: '💪', unit: 'reps', difficulty: 'intermediate', category: 'strength', points: 85 },
+  { id: 41, name: 'Hip thrust',              desc: 'Elevación de cadera con mancuerna apoyada sobre las caderas.',            icon: '🍑', unit: 'reps', difficulty: 'beginner',     category: 'strength', points: 80 },
+  { id: 42, name: 'Curl martillo',           desc: 'Curl de bíceps con agarre neutro (palmas al torso).',                    icon: '💪', unit: 'reps', difficulty: 'beginner',     category: 'strength', points: 65 },
+];
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS achievements (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -152,6 +169,22 @@ db.exec(`
     upd.run(JSON.stringify(g), id);
   }
 })();
+
+// Insertar los 12 ejercicios de mancuernas (ids 31-42) si todavía no existen,
+// para que las instalaciones ya creadas también los reciban. Se ejecuta después
+// de garantizar las columnas unit/guide.
+{
+  const insertNew = db.prepare(
+    'INSERT OR IGNORE INTO exercises (id, name, description, icon, unit, difficulty, category, points, guide) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  );
+  const tx = db.transaction(() => {
+    for (const ex of NEW_EXERCISES) {
+      const guide = GUIDES[ex.id] ? JSON.stringify(GUIDES[ex.id]) : null;
+      insertNew.run(ex.id, ex.name, ex.desc, ex.icon, ex.unit, ex.difficulty, ex.category, ex.points, guide);
+    }
+  });
+  tx();
+}
 
 (function () {
   const cols = db.prepare("PRAGMA table_info('workout_sessions')").all();

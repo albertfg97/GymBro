@@ -17,10 +17,12 @@ routes/
   auth.js            Registro y login con bcrypt + JWT (30 días). Valida los campos.
   profile.js         Perfil, historial, estadísticas. Auth. (Se eliminó el vulnerable POST /points).
   leaderboard.js     Ranking por XP.
-  exercises.js       30 ejercicios seed en 6 categorías + filtros. Devuelve `unit` y `guide` (objeto).
+  exercises.js       42 ejercicios seed en 6 categorías + filtros. Devuelve `unit` y `guide` (objeto).
   workouts.js        Registrar sesión, sumar XP/nivel, rachas (streak), evaluar logros. Guarda sets/reps/peso.
   achievements.js    Listado de logros y logros del usuario actual.
   routines.js        6 rutinas seed con ejercicios ordenados (incluye `guide` por ejercicio).
+  plan.js            Plan personalizado (solo usuario `dake`): rutina de 4 semanas (días A/B) + nutrición (menú 7 días, lista de compra, preparación, seguimiento).
+  plan.js route      routes/plan.js — GET /api/plan (auth): devuelve el plan solo al usuario `dake`; enriquece cada ejercicio con sus datos del catálogo.
   social.js          Amistades (solicitud mutua) y desafíos entre amigos.
   validation.js      Validación de entrada compartida (registro y perfil).
 public/
@@ -88,14 +90,27 @@ El foco de la UI está en **guiar** al usuario, no en el seguimiento:
 5. Pantalla de resultado: XP ganado, rachas, nuevos logros.
 6. Pantallas secundarias: historial (con stats), clasificación, logros, perfil.
 
+## Plan personalizado ("Mi plan")
+
+- Asociado **exclusivamente** al usuario `dake` (ya existente; el plan solo se vincula a él por nombre). El botón "Mi plan" solo aparece al iniciar sesión como `dake`.
+- **Rutina de 4 semanas**: 3 días/semana (Lunes/Miércoles/Viernes) con días A/B. Cada semana define por ejercicio: series, repeticiones, descanso (s) e intensidad objetivo (RIR). Los ejercicios referencian el catálogo; al pulsarlos se abre el flujo de workout guiado (pasos + voz + GIF + panel de series/reps/peso, ya que `unit = 'reps'`).
+- **Nutrición**: calorías/proteína objetivo, principios, menú de 7 días (≈2200 kcal, 140-150 g proteína), lista de la compra semanal, batch cooking (2 veces/semana), seguimiento y ajustes, y nota de suplementos.
+- **Backend**: `GET /api/plan` exige auth y devuelve `{ owned: bool, plan }`; solo `owned: true` (usuario `dake`) recibe el objeto completo.
+- **Datos**: el contenido del plan vive en `plan.js` (raíz, NO en `data/` que es volumen Docker).
+
+## Ejercicios de mancuernas (ids 31-42)
+
+Añadidos para el plan: `unit = 'reps'`, categoría `strength`, con guías en `guides.js` (procedentes de exercises-dataset) y GIFs referenciados por URL upstream. Se insertan en instalaciones ya creadas mediante un bloque `INSERT OR IGNORE` en `db.js` (tras garantizar las columnas `unit`/`guide`).
+
 ## Estado (implementado)
 
 - Auth (registro/login con JWT) + validación de entrada (rangos de altura/peso, enums, longitud).
 - Gestión de perfil (consulta y edición). Eliminada la vulnerabilidad del endpoint `/points`.
-- Sistema de ejercicios: 30 seed en 6 categorías, filtros, badges de dificultad, campo `unit`.
+- Sistema de ejercicios: 42 seed en 6 categorías, filtros, badges de dificultad, campo `unit`.
 - Guías e instrucciones: pasos enriquecidos (procedentes de exercises-dataset/ExerciseDB) para fuerza/cardio/HIIT + animaciones GIF de referencia en modal y pantalla de workout.
 - Flujo de workout con cronómetro, rachas y logros. Registro opcional de series/reps/peso.
 - Sistema de rutinas: 6 rutinas, flujo secuencial.
+- Plan personalizado "Mi plan" (usuario `dake`): rutina 4 semanas (A/B) + nutrición/shopping/seguimiento, con ejercicio guiado integrado.
 - Historial con stats y registro por entreno (incluye sets/reps/peso si los hay).
 - Sistema social: amistades mutuas + desafíos entre amigos (3 métricas).
 - Clasificación, logros, perfil.

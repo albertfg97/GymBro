@@ -86,6 +86,7 @@
         <button class="btn-secondary" id="btn-history" tabindex="0">Historial</button>
         <button class="btn-secondary" id="btn-achievements" tabindex="0">Logros</button>
         <button class="btn-secondary" id="btn-social" tabindex="0">Social</button>
+        <button class="btn-secondary" id="btn-plan" tabindex="0" hidden>Mi plan</button>
         <button class="btn-secondary" id="btn-profile" tabindex="0">Mi perfil</button>
         <button class="btn-secondary" id="btn-leaderboard" tabindex="0">Clasificación</button>
         <button class="btn-secondary" id="btn-logout" tabindex="0">Salir</button>
@@ -198,6 +199,20 @@
         <div id="history-stats" class="history-stats"></div>
         <div id="history-list" class="history-list"></div>
         <button class="btn-link" id="btn-history-back" tabindex="0">Volver</button>
+      </div>
+    </section>
+
+    <!-- SCREEN: Plan (Dake) -->
+    <section id="screen-plan" class="screen" hidden>
+      <div class="form-card form-card--wide">
+        <h1 class="title">Mi plan</h1>
+        <div class="plan-tabs">
+          <button class="btn-tab active" data-plan-tab="rutina" tabindex="0">Rutina</button>
+          <button class="btn-tab" data-plan-tab="nutricion" tabindex="0">Nutrición</button>
+        </div>
+        <div id="plan-content"></div>
+        <button class="btn-link" id="btn-plan-back" tabindex="0">Volver</button>
+        <p id="plan-error" class="error" hidden></p>
       </div>
     </section>
 
