@@ -71,8 +71,9 @@ data/gymbro.db       Base de datos SQLite (persistida vía volumen Docker; ignor
 
 El foco de la UI está en **guiar** al usuario, no en el seguimiento:
 
-- **Contenido**: `data/guides.js` define por ejercicio una guía con `steps` (pasos), `watch` (errores comunes) y `coach` (mensaje motivador).
-- **Modal de ejercicio**: muestra los pasos y precauciones, con botón "🔊 Escuchar" que lee la guía completa en voz alta.
+- **Contenido**: `data/guides.js` define por ejercicio una guía con `steps` (pasos), `watch` (errores comunes), `coach` (mensaje motivador) y, opcionalmente, `gifUrl` (animación de referencia).
+- **Instrucciones y animación**: los pasos de los ejercicios de fuerza/cardio/HIIT provienen de [hasaneyldrm/exercises-dataset](https://github.com/hasaneyldrm/exercises-dataset) (basado en ExerciseDB v1), texto bajo licencia MIT. Las animaciones (GIF) son © Gym visual (https://gymvisual.com/): **no se redistribuyen** en el repo, sino que se referencian por URL desde el repositorio upstream (igual que openGym), y se muestran en el modal y en la pantalla de entrenamiento. Yoga, baile y meditación conservan sus guías propias (el dataset no las cubre).
+- **Modal de ejercicio**: muestra los pasos y precauciones, con botón "🔊 Escuchar" que lee la guía completa en voz alta, y una animación (GIF) de referencia si está disponible.
 - **Pantalla de entrenamiento**: bloque *coach* con el paso actual en grande, puntos de progreso, botones "◀ Anterior / 🔊 / Siguiente ▶", y lectura automática del paso al entrar y al navegar.
 - **Voz**: Web Speech API (`SpeechSynthesisUtterance`) en español (busca voz es-ES/MX/AR). Se detiene al completar o cancelar.
 - **Rutinas**: cada ejercicio de una rutina pasa por el mismo flujo guiado.
@@ -92,6 +93,7 @@ El foco de la UI está en **guiar** al usuario, no en el seguimiento:
 - Auth (registro/login con JWT) + validación de entrada (rangos de altura/peso, enums, longitud).
 - Gestión de perfil (consulta y edición). Eliminada la vulnerabilidad del endpoint `/points`.
 - Sistema de ejercicios: 30 seed en 6 categorías, filtros, badges de dificultad, campo `unit`.
+- Guías e instrucciones: pasos enriquecidos (procedentes de exercises-dataset/ExerciseDB) para fuerza/cardio/HIIT + animaciones GIF de referencia en modal y pantalla de workout.
 - Flujo de workout con cronómetro, rachas y logros. Registro opcional de series/reps/peso.
 - Sistema de rutinas: 6 rutinas, flujo secuencial.
 - Historial con stats y registro por entreno (incluye sets/reps/peso si los hay).

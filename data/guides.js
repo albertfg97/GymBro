@@ -1,8 +1,18 @@
 // Guías pedagógicas del entrenador, por ejercicio (clave = id del ejercicio).
 // Cada guía tiene:
-//   steps -> pasos claros que se muestran en pantalla y se leen en voz alta
-//   watch -> errores comunes / precauciones
-//   coach -> mensaje motivador breve
+//   steps   -> pasos claros que se muestran en pantalla y se leen en voz alta
+//   watch   -> errores comunes / precauciones
+//   coach   -> mensaje motivador breve
+//   gifUrl  -> (opcional) animación de referencia del ejercicio.
+//
+// Los pasos de varios ejercicios provienen de exercises-dataset (hasaneyldrm/
+// exercises-dataset, basado en ExerciseDB v1), licencia MIT para el texto.
+// Las animaciones (GIF) son © Gym visual (https://gymvisual.com/) y NO se
+// redistribuyen: se referencian desde el repositorio upstream (igual que hace
+// openGym). Su reutilización comercial requiere permiso del titular de los
+// derechos. Ver NOTICE / README.
+
+const UPSTREAM = 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/';
 
 module.exports = {
   1: {
@@ -27,23 +37,28 @@ module.exports = {
   },
   3: {
     steps: [
-      'Ponte de pie, con los brazos a los lados.',
-      'Salta abriendo las piernas y elevando los brazos por encima de la cabeza.',
-      'Vuelve al centro juntando los pies y bajando los brazos.',
-      'Mantén una cadencia fluida y relajada.',
+      'Ponte de pie con los pies juntos y los brazos a los costados.',
+      'Salta separando los pies y levantando los brazos por encima de la cabeza.',
+      'Al aterrizar, salta rápidamente de vuelta a la posición inicial.',
+      'Repite el número de repeticiones deseado.',
     ],
     watch: ['Flexiona un poco las rodillas al aterrizar.'],
     coach: 'Repite con fluidez y encuentra un buen ritmo.',
+    gifUrl: UPSTREAM + 'videos/3224-1g5bPpA.gif',
   },
   4: {
     steps: [
-      'Agáchate y apoya las manos en el suelo.',
-      'Empuja las piernas hacia atrás hasta quedar en plancha.',
-      'Realiza una flexión bajando el pecho cerca del suelo.',
-      'Lleva los pies de vuelta a las manos y salta elevando los brazos.',
+      'Comienza de pie con los pies separados a la altura de los hombros.',
+      'Baja el cuerpo hacia una posición de sentadilla flexionando las rodillas y colocando las manos en el suelo frente a ti.',
+      'Lleva los pies hacia atrás de una patada hasta una posición de flexión de brazos.',
+      'Realiza una flexión de brazos, manteniendo el cuerpo en línea recta.',
+      'Salta con los pies de vuelta a la posición de sentadilla.',
+      'Salta hacia arriba explosivamente, llevando los brazos por encima de la cabeza.',
+      'Aterriza suavemente y baja de inmediato a una posición de sentadilla para comenzar la siguiente repetición.',
     ],
     watch: ['Mantén el abdomen firme y la espalda alineada.'],
     coach: 'Es intenso: si te falta el aire, ve más despacio.',
+    gifUrl: UPSTREAM + 'videos/1160-dK9394r.gif',
   },
   5: {
     steps: [
@@ -57,53 +72,63 @@ module.exports = {
   },
   6: {
     steps: [
-      'Apoya las manos y las puntas de los pies, cuerpo en línea recta.',
-      'Separa las manos un poco más que los hombros.',
-      'Baja el pecho hacia el suelo doblando los codos.',
-      'Empuja con fuerza hacia arriba hasta estirar los brazos.',
+      'Comienza en una posición de plancha alta con las manos un poco más separadas que la anchura de los hombros y los pies juntos.',
+      'Activa el core y baja el cuerpo hacia el suelo flexionando los codos, manteniendo el cuerpo en línea recta.',
+      'Haz una pausa cuando el pecho esté justo por encima del suelo y luego empújate de vuelta a la posición inicial estirando los brazos.',
+      'Repite el número de repeticiones deseado.',
     ],
     watch: ['No dejes caer la cadera ni metas la cabeza hacia delante.'],
     coach: 'Si te cuesta, apoya las rodillas en el suelo.',
+    gifUrl: UPSTREAM + 'videos/0662-I4hDWkc.gif',
   },
   7: {
     steps: [
-      'Pies al ancho de los hombros y puntas ligeramente hacia fuera.',
-      'Empuja la cadera hacia atrás y baja como si fueras a sentarte.',
-      'Baja hasta que los muslos queden paralelos al suelo.',
-      'Impulsa con los talones para volver a ponerte de pie.',
+      'Ponte de pie con los pies separados a la altura de los hombros, los dedos de los pies ligeramente hacia afuera.',
+      'Baja el cuerpo flexionando las rodillas y empujando las caderas hacia atrás como si te sentaras en una silla.',
+      'Mantén el pecho hacia arriba y la espalda recta durante todo el movimiento.',
+      'Baja hasta que los muslos queden paralelos al suelo o hasta donde puedas llegar cómodamente.',
+      'Haz una pausa por un momento en la parte inferior, luego empuja con los talones para regresar a la posición inicial.',
+      'Repite el número de repeticiones deseado.',
     ],
     watch: ['No dejes que las rodillas pasen muy por delante de las puntas.'],
     coach: 'Mantén la espalda recta y el pecho firme.',
+    gifUrl: UPSTREAM + 'videos/3119-75Bgtjy.gif',
   },
   8: {
     steps: [
-      'Apoyo los antebrazos en el suelo y las manos al frente.',
+      'Apóyate en antebrazos y puntas de los pies, con los codos bajo los hombros.',
       'Extiende el cuerpo hasta quedar también apoyado sobre las puntas.',
       'Forma una línea recta de la cabeza a los talones.',
       'Contrae abdomen, cadera y glúteos, y aguanta.',
     ],
     watch: ['No arquees la espalda ni dejes caer la cadera.'],
     coach: 'Respira de forma continua y sostén la posición.',
+    gifUrl: UPSTREAM + 'videos/0464-CosupLu.gif',
   },
   9: {
     steps: [
-      'Da un paso largo hacia delante con una pierna.',
-      'Baja la rodilla trasera hacia el suelo doblando la delantera.',
-      'Cuando los muslos formen el ángulo adecuado, vuelve arriba.',
-      'Cambia de pierna y repite alternando.',
+      'Ponte de pie con los pies separados a la altura de los hombros.',
+      'Da un paso adelante con la pierna derecha, bajando el cuerpo a una posición de zancada.',
+      'Mantén el torso erguido y la rodilla delantera alineada con el tobillo.',
+      'Empújate con el pie derecho y lleva el pie izquierdo hacia adelante, entrando en una posición de zancada con la pierna izquierda.',
+      'Continúa alternando las piernas y avanzando, manteniendo un ritmo controlado y constante.',
+      'Repite el número de repeticiones deseado.',
     ],
     watch: ['La rodilla delantera debe ir alineada en la punta del pie.'],
     coach: 'Mantén el torso erguido y firme durante todo el paso.',
+    gifUrl: UPSTREAM + 'videos/1460-IZVHb27.gif',
   },
   10: {
     steps: [
-      'Apoya las manos detrás de ti, sobre una superficie baja.',
-      'Estira las piernas delante de ti.',
-      'Desciende el cuerpo doblando los codos.',
-      'Empuja para volver hacia arriba con control.',
+      'Siéntate en el borde de un banco con las manos agarrando el borde, los dedos apuntando hacia adelante.',
+      'Camina con los pies hacia adelante, deslizando los glúteos fuera del banco, y estira los brazos.',
+      'Flexiona los codos y baja el cuerpo hacia el suelo, manteniendo la espalda cerca del banco.',
+      'Empuja con las palmas para estirar los brazos y regresar a la posición inicial.',
+      'Repite el número de repeticiones deseado.',
     ],
     watch: ['Mantén los codos apuntando hacia atrás, cerca del cuerpo.'],
     coach: 'Baja lento y sube con firmeza.',
+    gifUrl: UPSTREAM + 'videos/0812-VuoerH0.gif',
   },
   11: {
     steps: [
@@ -156,39 +181,55 @@ module.exports = {
   },
   16: {
     steps: [
-      'Corre en el sitio elevando las rodillas a la altura del pecho.',
-      'Mueve los brazos al ritmo de las piernas.',
-      'Aterriza sobre la punta de los dedos.',
+      'Ponte de pie frente a una pared con los pies separados a la altura de las caderas.',
+      'Coloca las manos en la pared para mayor apoyo.',
+      'Activa el core y levanta la rodilla derecha hacia el pecho, mientras mantienes el pie izquierdo en el suelo.',
+      'Cambia rápidamente de pierna, llevando la rodilla izquierda hacia el pecho y bajando el pie derecho de nuevo.',
+      'Continúa alternando las piernas con un movimiento de carrera, llevando las rodillas lo más alto posible.',
+      'Mantén un ritmo rápido y la parte superior del cuerpo estable durante todo el ejercicio.',
     ],
     watch: ['Mantén la espalda recta y no te encorves.'],
     coach: 'Eleva con fuerza las rodillas y mantén la cadencia.',
+    gifUrl: UPSTREAM + 'videos/3636-ealLwvX.gif',
   },
   17: {
     steps: [
-      'En plancha, con las manos apoyadas bajo los hombros.',
-      'Lleve una rodilla hacia el pecho.',
-      'Cambia rápidamente de pierna como si subiera una pendiente.',
+      'Comienza en una posición de plancha alta con las manos justo debajo de los hombros y el cuerpo en línea recta.',
+      'Activa el core y lleva la rodilla derecha hacia el pecho, luego cambia rápidamente y lleva la rodilla izquierda hacia el pecho.',
+      'Continúa alternando las piernas con un movimiento de carrera, manteniendo las caderas bajas y el core activado.',
+      'Mantén un ritmo constante y respira de forma regular durante todo el ejercicio.',
+      'Repite el número de repeticiones deseado.',
     ],
     watch: ['No subas la cadera; mantén la posición de plancha firme.'],
     coach: 'Pies rápidos, cuerpo firme.',
+    gifUrl: UPSTREAM + 'videos/0630-RJgzwny.gif',
   },
   18: {
     steps: [
-      'Pies al ancho de hombros y baja la cadera en sentadilla.',
-      'Salta hacia arriba con fuerza y explosión.',
-      'Aterriza suave y vuelve a bajar en sentadilla.',
+      'Ponte de pie con los pies separados a la altura de los hombros.',
+      'Baja el cuerpo hacia una posición de sentadilla flexionando las rodillas y empujando las caderas hacia atrás.',
+      'Salta de forma explosiva desde el suelo, extendiendo las caderas, las rodillas y los tobillos.',
+      'Mientras estás en el aire, lleva rápidamente los brazos hacia adelante para mantener el equilibrio.',
+      'Aterriza suavemente sobre la punta de los pies y pasa de inmediato a la siguiente repetición.',
+      'Repite el número de repeticiones deseado.',
     ],
     watch: ['Aterriza primero con la punta y controla la caída.'],
     coach: 'Sé explosivo, pero con control.',
+    gifUrl: UPSTREAM + 'videos/0514-LIlE5Tn.gif',
   },
   19: {
     steps: [
-      'En posición de media sentadilla, prepárate.',
-      'Salta lateralmente desplazándote hacia un lado.',
-      'Aterriza con las rodillas blandas y continua del otro lado.',
+      'Ponte de pie con los pies separados a la altura de los hombros.',
+      'Dobla ligeramente las rodillas y salta hacia la derecha, aterrizando sobre el pie derecho.',
+      'Al aterrizar, balancea la pierna izquierda detrás de la pierna derecha y toca el suelo con los dedos del pie izquierdo.',
+      'Salta inmediatamente hacia la izquierda, aterrizando sobre el pie izquierdo.',
+      'Al aterrizar, balancea la pierna derecha detrás de la pierna izquierda y toca el suelo con los dedos del pie derecho.',
+      'Continúa alternando los lados, saltando y tocando el suelo con cada pierna.',
+      'Repite el número de repeticiones deseado.',
     ],
     watch: ['No inclines el torso hacia delante al aterrizar.'],
     coach: 'Ligero y ágil en cada salto.',
+    gifUrl: UPSTREAM + 'videos/3361-zfNHMN9.gif',
   },
   20: {
     steps: [

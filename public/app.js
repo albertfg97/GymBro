@@ -199,11 +199,24 @@
   const modalStart = document.getElementById('modal-start');
   const modalClose = document.getElementById('modal-close');
   const modalGuide = document.getElementById('modal-guide');
+  const modalGuideMedia = document.getElementById('modal-guide-media');
   const modalGuideSteps = document.getElementById('modal-guide-steps');
   const modalGuideWatch = document.getElementById('modal-guide-watch');
   const modalGuideListen = document.getElementById('modal-guide-listen');
 
+  function renderGuideMedia(container, guide, cls) {
+    container.innerHTML = '';
+    if (!guide || !guide.gifUrl) return;
+    const img = document.createElement('img');
+    img.className = cls;
+    img.src = guide.gifUrl;
+    img.alt = 'Animación del ejercicio';
+    img.loading = 'lazy';
+    container.append(img);
+  }
+
   function renderGuideIntoModal(guide) {
+    renderGuideMedia(modalGuideMedia, guide, 'guide-gif');
     if (!guide) {
       modalGuide.hidden = true;
       return;
@@ -294,6 +307,7 @@
 
   const workoutIcon = document.getElementById('workout-icon');
   const workoutName = document.getElementById('workout-name');
+  const workoutMedia = document.getElementById('workout-media');
   const workoutTimer = document.getElementById('workout-timer');
   const workoutHint = document.getElementById('workout-hint');
   const workoutComplete = document.getElementById('workout-complete');
@@ -338,6 +352,7 @@
     activeExercise = ex;
     workoutIcon.textContent = ex.icon;
     workoutName.textContent = ex.name;
+    renderGuideMedia(workoutMedia, parseGuide(ex.guide), 'guide-gif guide-gif--large');
     workoutHint.textContent = isRoutine
       ? `Ejercicio ${routineExerciseIndex + 1} de ${activeRoutine.exercises.length}`
       : 'Realiza el ejercicio y presiona Completar cuando termines';

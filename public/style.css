@@ -924,6 +924,32 @@ select option {
   font-weight: 700;
 }
 
+/* -------- Media (GIF de referencia) ---------- */
+.modal-guide-media {
+  display: flex;
+  justify-content: center;
+}
+
+.guide-gif {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: #000;
+}
+
+.guide-gif--large {
+  width: 200px;
+  height: 200px;
+}
+
+.workout-media {
+  display: flex;
+  justify-content: center;
+  margin: 0.2rem 0;
+}
+
 /* -------- Coach (pantalla de entrenamiento) ---------- */
 .workout-coach {
   background: var(--bg);

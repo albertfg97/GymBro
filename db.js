@@ -145,9 +145,11 @@ db.exec(`
     db.exec('ALTER TABLE exercises ADD COLUMN guide TEXT');
   db.prepare("UPDATE exercises SET unit = 'reps' WHERE id IN (6,7,8,9,10,17,18,19)")
     .run();
-  const upd = db.prepare('UPDATE exercises SET guide = ? WHERE id = ? AND (guide IS NULL OR guide = ?)');
+  // Las guías de data/guides.js son la fuente de verdad: se sincronizan siempre
+  // para que las instalaciones existentes reciban el contenido actualizado.
+  const upd = db.prepare('UPDATE exercises SET guide = ? WHERE id = ?');
   for (const [id, g] of Object.entries(GUIDES)) {
-    upd.run(JSON.stringify(g), id, '');
+    upd.run(JSON.stringify(g), id);
   }
 })();
 
