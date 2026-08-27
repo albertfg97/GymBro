@@ -257,7 +257,7 @@ module.exports = {
       ajustes: {
         perdida_esperada: '0.2-0.4 kg por semana',
         si_no_hay_perdida_durante_2_3_semanas: 'Reducir aproximadamente 150-200 kcal/día o aumentar actividad',
-        si_se_pierde_mas_de_0.5kg_semana_y_baja_el_rendimiento: 'Añadir aproximadamente 100-200 kcal/día',
+        'si_se_pierde_mas_de_0.5kg_semana_y_baja_el_rendimiento': 'Añadir aproximadamente 100-200 kcal/día',
         proteina: 'Mantener aproximadamente 135-150 g/día',
       },
     },
