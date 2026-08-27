@@ -65,4 +65,28 @@ db.exec(`
   )
 `);
 
+// Migraciones: si la tabla `users` proviene de un esquema anterior (v1), añade
+// las columnas que falten para que coincida con el esquema v2 sin borrar datos.
+// Nota: ALTER TABLE ADD COLUMN no admite CHECK, por eso se añaden sin él.
+(function migrateUsers() {
+  let cols;
+  try { cols = db.prepare('PRAGMA table_info(users)').all(); }
+  catch { return; }
+  const have = new Set(cols.map(c => c.name));
+  const add = function (name, decl) {
+    if (have.has(name)) return;
+    db.exec(`ALTER TABLE users ADD COLUMN ${name} ${decl}`);
+    have.add(name);
+  };
+  add('role',           "TEXT NOT NULL DEFAULT 'user'");
+  add('birth_year',     'INTEGER');
+  add('height_cm',      'REAL');
+  add('weight_kg',      'REAL');
+  add('goal',           "TEXT NOT NULL DEFAULT 'maintain'");
+  add('activity_level', "TEXT NOT NULL DEFAULT 'light'");
+  add('equipment',      "TEXT NOT NULL DEFAULT '{}'");
+  add('allergies',      "TEXT NOT NULL DEFAULT '[]'");
+  add('plan',           'TEXT');
+})();
+
 module.exports = db;
