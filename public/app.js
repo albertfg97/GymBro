@@ -33,6 +33,10 @@
     if (body !== undefined) opts.body = typeof body === 'string' ? body : JSON.stringify(body);
     const res = await fetch(`${API}${path}`, opts);
     const data = await res.json().catch(() => ({}));
+    if (res.status === 401 && !String(path).startsWith('/auth/')) {
+      forceLogout();
+      throw new Error('Sesión caducada. Inicia sesión de nuevo.');
+    }
     if (!res.ok) throw new Error(data.error || 'Error del servidor');
     return data;
   }
@@ -98,7 +102,10 @@
 
   /* ---------- home ---------- */
   async function enterHome() {
-    if (!currentUser) currentUser = await api('GET', '/profile').catch(() => null);
+    if (!currentUser) {
+      try { currentUser = await api('GET', '/profile'); }
+      catch { if (!currentUser) { forceLogout(); return; } }
+    }
     document.getElementById('greeting').textContent = `Bienvenido, ${currentUser && currentUser.name ? currentUser.name : ''}`;
     const tvHome = document.getElementById('tv-home');
     const mobHome = document.getElementById('mobile-home');
@@ -593,12 +600,24 @@
     }
   });
 
-  function logout() {
+  function hideOverlays() {
+    const els = ['result-overlay', 'mode-overlay', 'overlay'];
+    els.forEach(id => { const el = document.getElementById(id); if (el) el.hidden = true; });
+    stopTimer();
+    Voice.stop();
+  }
+
+  function forceLogout() {
     token = null; currentUser = null; plan = null; pendingStart = null;
     localStorage.removeItem('gymbro-v2-token');
-    Voice.stop();
+    hideOverlays();
     show('screen-login');
-    document.getElementById('login-name').focus();
+    const ln = document.getElementById('login-name');
+    if (ln) ln.focus();
+  }
+
+  function logout() {
+    forceLogout();
   }
   const logoutBtns = [document.getElementById('btn-logout')];
   logoutBtns.forEach(b => { if (b) b.addEventListener('click', logout); });
@@ -634,6 +653,7 @@
   /* ---------- init ---------- */
   Voice.init();
   (async function init() {
+    hideOverlays();
     if (!token) { show('screen-login'); return; }
     try {
       currentUser = await api('GET', '/profile');
@@ -642,8 +662,7 @@
       await loadPlan();
       enterHome();
     } catch {
-      token = null; localStorage.removeItem('gymbro-v2-token');
-      show('screen-login');
+      forceLogout();
     }
   })();
 })();
