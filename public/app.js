@@ -801,7 +801,7 @@
       <ul class="plan-list">
         <li>${esc(n.seguimiento.ajustes.perdida_esperada)}</li>
         <li>${esc(n.seguimiento.ajustes.si_no_hay_perdida_durante_2_3_semanas)}</li>
-        <li>${esc(n.seguimiento.ajustes.si_se_pierde_mas_de_0.5kg_semana_y_baja_el_rendimiento)}</li>
+        <li>${esc(n.seguimiento.ajustes['si_se_pierde_mas_de_0.5kg_semana_y_baja_el_rendimiento'])}</li>
         <li>${esc(n.seguimiento.ajustes.proteina)}</li>
       </ul>
     </div>
