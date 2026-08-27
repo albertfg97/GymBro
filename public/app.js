@@ -97,8 +97,9 @@
   }
 
   /* ---------- home ---------- */
-  function enterHome() {
-    document.getElementById('greeting').textContent = `Bienvenido, ${currentUser.name}`;
+  async function enterHome() {
+    if (!currentUser) currentUser = await api('GET', '/profile').catch(() => null);
+    document.getElementById('greeting').textContent = `Bienvenido, ${currentUser && currentUser.name ? currentUser.name : ''}`;
     const tvHome = document.getElementById('tv-home');
     const mobHome = document.getElementById('mobile-home');
     tvHome.hidden = mode !== 'tv';
