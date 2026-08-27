@@ -13,7 +13,6 @@
 ```
 server.js            Express: sirve estáticos y monta las rutas /api/*. Puerto 80. Exporta app (testable).
 db.js                Conexión SQLite, esquema de tablas y seed. Ruta redefinible con GYMBRO_DB_PATH (tests).
-data/guides.js       Contenido pedagógico del entrenador por ejercicio (steps, watch, coach).
 routes/
   auth.js            Registro y login con bcrypt + JWT (30 días). Valida los campos.
   profile.js         Perfil, historial, estadísticas. Auth. (Se eliminó el vulnerable POST /points).
@@ -31,6 +30,7 @@ public/
 test/                Suites con node --test + supertest (usan una DB temporal aislada).
 eslint.config.js     Config ESLint flat (node/browser).
 data/gymbro.db       Base de datos SQLite (persistida vía volumen Docker; ignorada por git).
+guides.js            Contenido pedagógico del entrenador por ejercicio (steps, watch, coach, gifUrl).
 .github/workflows/   CI/CD: build y push a Docker Hub en cada push a main.
 ```
 
@@ -71,7 +71,7 @@ data/gymbro.db       Base de datos SQLite (persistida vía volumen Docker; ignor
 
 El foco de la UI está en **guiar** al usuario, no en el seguimiento:
 
-- **Contenido**: `data/guides.js` define por ejercicio una guía con `steps` (pasos), `watch` (errores comunes), `coach` (mensaje motivador) y, opcionalmente, `gifUrl` (animación de referencia).
+- **Contenido**: `guides.js` define por ejercicio una guía con `steps` (pasos), `watch` (errores comunes), `coach` (mensaje motivador) y, opcionalmente, `gifUrl` (animación de referencia).
 - **Instrucciones y animación**: los pasos de los ejercicios de fuerza/cardio/HIIT provienen de [hasaneyldrm/exercises-dataset](https://github.com/hasaneyldrm/exercises-dataset) (basado en ExerciseDB v1), texto bajo licencia MIT. Las animaciones (GIF) son © Gym visual (https://gymvisual.com/): **no se redistribuyen** en el repo, sino que se referencian por URL desde el repositorio upstream (igual que openGym), y se muestran en el modal y en la pantalla de entrenamiento. Yoga, baile y meditación conservan sus guías propias (el dataset no las cubre).
 - **Modal de ejercicio**: muestra los pasos y precauciones, con botón "🔊 Escuchar" que lee la guía completa en voz alta, y una animación (GIF) de referencia si está disponible.
 - **Pantalla de entrenamiento**: bloque *coach* con el paso actual en grande, puntos de progreso, botones "◀ Anterior / 🔊 / Siguiente ▶", y lectura automática del paso al entrar y al navegar.

@@ -1,6 +1,6 @@
 const Database = require('better-sqlite3');
 const path = require('path');
-const GUIDES = require('./data/guides');
+const GUIDES = require('./guides');
 
 const DB_PATH = process.env.GYMBRO_DB_PATH || path.join(__dirname, 'data', 'gymbro.db');
 
@@ -145,7 +145,7 @@ db.exec(`
     db.exec('ALTER TABLE exercises ADD COLUMN guide TEXT');
   db.prepare("UPDATE exercises SET unit = 'reps' WHERE id IN (6,7,8,9,10,17,18,19)")
     .run();
-  // Las guías de data/guides.js son la fuente de verdad: se sincronizan siempre
+  // Las guías de guides.js son la fuente de verdad: se sincronizan siempre
   // para que las instalaciones existentes reciban el contenido actualizado.
   const upd = db.prepare('UPDATE exercises SET guide = ? WHERE id = ?');
   for (const [id, g] of Object.entries(GUIDES)) {
