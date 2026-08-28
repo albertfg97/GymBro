@@ -76,6 +76,8 @@ function normalizeItem(item, idx) {
   const sets = Number(pick(item, ['sets', 'series', 'set_count'], 0)) || 0;
   const reps = pick(item, ['reps', 'repeticiones', 'duracion', 'duration'], '') || '';
   const descanso_s = Number(pick(item, ['descanso_s', 'descanso_segundos', 'rest_s', 'rest'], 0)) || 0;
+  const peso_por_mancuerna = Number(pick(item, ['peso_kg_por_mancuerna', 'peso_por_mancuerna'], 0)) || 0;
+  const peso_total = Number(pick(item, ['peso_kg_total', 'peso_total'], 0)) || 0;
   const ex = CATALOG.byName(ejercicio);
   return {
     idx: idx + 1,
@@ -84,6 +86,8 @@ function normalizeItem(item, idx) {
     sets,
     reps: String(reps),
     descanso_s,
+    peso_kg_por_mancuerna: peso_por_mancuerna,
+    peso_kg_total: peso_total,
     guide: ex ? ex.guide : null,
   };
 }
@@ -275,7 +279,7 @@ function canonicalRutina(data) {
       const v = first.dias[dk];
       if (Array.isArray(v)) {
         const label = dayKeyToBlock(dk) || ordinalBlock(arrIdx);
-        out.bloques[label] = v.map(normalizeItem);
+        if (!out.bloques[label]) out.bloques[label] = v.map(normalizeItem);
         dayLabels.push(label);
         arrIdx++;
       } else if (typeof v === 'string' && /^[AaBb]$/.test(v.trim())) {

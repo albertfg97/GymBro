@@ -108,9 +108,9 @@ test('formato canónico: importar rutina desde entrenamiento.semanas', async () 
         semanas: {
           semana_1: {
             dias: {
-              dia_1_A: [{ ejercicio: 'Sentadilla búlgara', series: 3, repeticiones: '8-12', descanso_segundos: 120 }],
-              dia_2_B: [{ ejercicio: 'Press militar', series: 3, repeticiones: '8-15', descanso_segundos: 120 }],
-              dia_3: 'A',
+              dia_1_A: [{ ejercicio: 'Sentadilla búlgara', series: 3, repeticiones: '8-12', peso_kg_por_mancuerna: 8, descanso_segundos: 120 }],
+              dia_2_B: [{ ejercicio: 'Press militar', series: 3, repeticiones: '8-15', peso_kg_total: 20, descanso_segundos: 120 }],
+              dia_3: [{ ejercicio: 'Sentadilla búlgara', series: 3, repeticiones: '8-12', peso_kg_por_mancuerna: 8, descanso_segundos: 120 }],
             },
           },
         },
@@ -137,6 +137,8 @@ test('formato canónico: importar rutina desde entrenamiento.semanas', async () 
     assert.ok(p.rutina.bloques.A);
     assert.ok(p.rutina.bloques.B);
     assert.strictEqual(p.rutina.bloques.A[0].ejercicio, 'Sentadilla búlgara');
+    assert.strictEqual(p.rutina.bloques.A[0].peso_kg_por_mancuerna, 8);
+    assert.strictEqual(p.rutina.bloques.B[0].peso_kg_total, 20);
     assert.strictEqual(p.rutina.dias_semana.length, 3);
     assert.strictEqual(p.rutina.dias_semana[0].dia, 'Lunes');
     assert.strictEqual(p.rutina.dias_semana[0].bloque, 'A');

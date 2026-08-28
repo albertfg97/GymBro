@@ -132,7 +132,7 @@
         <button class="tv-ex-card" data-start="${ex.idx}" tabindex="0">
           <span class="tv-ex-icon">${ex.icon}</span>
           <span class="tv-ex-name">${esc(ex.ejercicio)}</span>
-          <span class="tv-ex-meta">${ex.sets ? `${ex.sets}×` : ''}${esc(ex.reps)}${ex.descanso_s ? ` · ${ex.descanso_s}s` : ''}</span>
+          <span class="tv-ex-meta">${ex.sets ? `${ex.sets}×` : ''}${esc(ex.reps)}${(ex.peso_kg_por_mancuerna || ex.peso_kg_total) ? ` @ ${ex.peso_kg_por_mancuerna || ex.peso_kg_total}kg` : ''}${ex.descanso_s ? ` · ${ex.descanso_s}s` : ''}</span>
         </button>`).join('');
       box.innerHTML = `
         <div class="tv-card">
@@ -191,7 +191,7 @@
       <button class="tv-ex-card" data-start="${i}" tabindex="0">
         <span class="tv-ex-icon">${ex.icon}</span>
         <span class="tv-ex-name">${esc(ex.ejercicio)}</span>
-        <span class="tv-ex-meta">${ex.sets ? `${ex.sets}×` : ''}${esc(ex.reps)}${ex.descanso_s ? ` · ${ex.descanso_s}s` : ''}</span>
+        <span class="tv-ex-meta">${ex.sets ? `${ex.sets}×` : ''}${esc(ex.reps)}${(ex.peso_kg_por_mancuerna || ex.peso_kg_total) ? ` @ ${ex.peso_kg_por_mancuerna || ex.peso_kg_total}kg` : ''}${ex.descanso_s ? ` · ${ex.descanso_s}s` : ''}</span>
       </button>`).join('');
     box.innerHTML = `<div class="tv-card">
       <div class="tv-heading"><div><h2 class="tv-title">Bloque ${esc(bloque)}</h2></div>
@@ -242,13 +242,16 @@
     workoutName.textContent = ex.ejercicio || ex.name || 'Ejercicio';
     const guide = ex.guide || null;
     renderGuideMedia(workoutMedia, guide, 'guide-gif guide-gif--large');
-    workoutLabel.textContent = (ex.sets ? `${ex.sets}×` : '') + (ex.reps ? ` ${ex.reps}` : '') + (ex.descanso_s ? ` · descanso ${ex.descanso_s}s` : '');
+    const planWeight = (ex.peso_kg_por_mancuerna || 0) || (ex.peso_kg_total || 0);
+    const pesoLabel = planWeight ? ` @ ${planWeight}kg` : '';
+    workoutLabel.textContent = (ex.sets ? `${ex.sets}×` : '') + (ex.reps ? ` ${ex.reps}` : '') + pesoLabel + (ex.descanso_s ? ` · descanso ${ex.descanso_s}s` : '');
     workoutMeta.textContent = guide ? 'Modo guiado: sígueme paso a paso' : 'Sigue el ejercicio y completa';
 
     repsPanel.hidden = !(ex.sets || ex.reps);
     repsSets.value = ex.sets || '';
     repsCount.value = ex.reps || '';
-    repsWeight.value = '';
+    const planWeight = (ex.peso_kg_por_mancuerna || 0) || (ex.peso_kg_total || 0);
+    repsWeight.value = planWeight || '';
 
     coachSteps = guide && Array.isArray(guide.steps) ? guide.steps.slice() : [];
     coachIndex = 0;
@@ -448,7 +451,7 @@
           <div class="rutina-row" data-manual-start="${esc(ex.ejercicio)}">
             <span class="routine-ex-icon">${ex.icon}</span>
             <span class="routine-ex-name">${esc(ex.ejercicio)}</span>
-            <span class="routine-ex-dur">${ex.sets ? `${ex.sets}×` : ''}${esc(ex.reps)}${ex.descanso_s ? ` · ${ex.descanso_s}s` : ''}</span>
+            <span class="routine-ex-dur">${ex.sets ? `${ex.sets}×` : ''}${esc(ex.reps)}${(ex.peso_kg_por_mancuerna || ex.peso_kg_total) ? ` @ ${ex.peso_kg_por_mancuerna || ex.peso_kg_total}kg` : ''}${ex.descanso_s ? ` · ${ex.descanso_s}s` : ''}</span>
           </div>`).join('');
         html += `<div class="m-card"><h3 class="m-title">Bloque ${esc(k)}</h3>${items || '<p class="plan-muted">Vacío</p>'}</div>`;
       });
