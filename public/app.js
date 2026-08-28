@@ -250,7 +250,6 @@
     repsPanel.hidden = !(ex.sets || ex.reps);
     repsSets.value = ex.sets || '';
     repsCount.value = ex.reps || '';
-    const planWeight = (ex.peso_kg_por_mancuerna || 0) || (ex.peso_kg_total || 0);
     repsWeight.value = planWeight || '';
 
     coachSteps = guide && Array.isArray(guide.steps) ? guide.steps.slice() : [];
