@@ -99,3 +99,54 @@ test('login con credenciales correctas', async () => {
     clean();
   }
 });
+
+test('formato canónico: importar rutina desde entrenamiento.semanas', async () => {
+  try {
+    const canonical = {
+      entrenamiento: {
+        distribucion: 'Lunes, miércoles y viernes',
+        semanas: {
+          semana_1: {
+            dias: {
+              dia_1_A: [{ ejercicio: 'Sentadilla búlgara', series: 3, repeticiones: '8-12', descanso_segundos: 120 }],
+              dia_2_B: [{ ejercicio: 'Press militar', series: 3, repeticiones: '8-15', descanso_segundos: 120 }],
+              dia_3: 'A',
+            },
+          },
+        },
+      },
+      nutricion: { calorias_objetivo_diarias_kcal: 2200, proteina_objetivo_diaria_g: '135-150' },
+      dieta_7_dias: {
+        dias: {
+          dia_1: { desayuno: 'Avena', comida: 'Pollo', snack: 'Yogur', cena: 'Merluza' },
+        },
+      },
+      lista_compra_semanal: { proteinas: ['Pollo'], carbohidratos: ['Avena'] },
+    };
+
+    const reg = await request(app).post('/api/auth/register').send({ name: 'canon', password: '1234' });
+    assert.strictEqual(reg.status, 201);
+    const token = reg.body.token;
+
+    const imp = await request(app)
+      .put('/api/profile/plan')
+      .set('Authorization', `Bearer ${token}`)
+      .send(canonical);
+    assert.strictEqual(imp.status, 200);
+    const p = imp.body.plan;
+    assert.ok(p.rutina.bloques.A);
+    assert.ok(p.rutina.bloques.B);
+    assert.strictEqual(p.rutina.bloques.A[0].ejercicio, 'Sentadilla búlgara');
+    assert.strictEqual(p.rutina.dias_semana.length, 3);
+    assert.strictEqual(p.rutina.dias_semana[0].dia, 'Lunes');
+    assert.strictEqual(p.rutina.dias_semana[0].bloque, 'A');
+    assert.strictEqual(p.rutina.dias_semana[1].bloque, 'B');
+    assert.strictEqual(p.rutina.dias_semana[2].bloque, 'A');
+    assert.strictEqual(p.alimentacion.objetivos.kcal_dia, 2200);
+    assert.strictEqual(p.alimentacion.dieta_7_dias.length, 1);
+    assert.strictEqual(p.alimentacion.dieta_7_dias[0].desayuno, 'Avena');
+    assert.ok(p.alimentacion.lista_compra.proteinas);
+  } finally {
+    clean();
+  }
+});

@@ -6,7 +6,7 @@
 
 1. **Crear cuenta / entrar** (login por usuario con contraseña).
 2. La app **pregunta en cada login** dónde la vas a usar: **📺 TV** (rutina guiada) o **📱 Móvil** (alimentación / perfil).
-3. En **Perfil (móvil)** se **sube un archivo .json** con el plan `{ rutina, alimentacion }` (ver `plan-ejemplo.json`). Se normaliza al cargar y se enlaza cada ejercicio al catálogo de guías por nombre.
+3. En **Perfil (móvil)** se **sube un archivo .json** con el plan (formato canónico, ver `plan-ejemplo.json`). Se normaliza al cargar y se enlaza cada ejercicio al catálogo de guías por nombre.
 4. **Modo TV**: muestra automáticamente lo que toca ese día (según `dias_semana` del plan), se puede elegir otro bloque, y cada ejercicio se guía paso a paso (voz + GIF) con temporizador e indicaciones de series/reps/descanso.
 5. **Modo Móvil**: pestañas Alimentación (objetivos, menú semanal, lista de compra), Rutina (bloques), Seguimiento (entrenos, peso, racha) y Perfil (importar plan, editar datos, cambiar modo).
 
@@ -51,25 +51,59 @@ data/gymbro.db       SQLite (persistida vía volumen Docker; ignorada por git).
 
 ## Plan JSON importable
 
-Un único archivo por usuario con la forma:
+Un único archivo por usuario. **Formato canónico** (el que se recomienda usar y el que viene en `plan-ejemplo.json`), con la rutina bajo `entrenamiento.semanas.<semana_N>.dias` y la dieta en `dieta_7_dias.dias`:
 
 ```json
 {
-  "rutina": {
-    "dias_semana": [ { "dia": "Lunes", "bloque": "A" }, ... ],
-    "bloques": { "A": [ { "ejercicio": "Sentadilla búlgara", "sets": 3, "reps": "8-12", "descanso_s": 120 } ], ... }
-  },
-  "alimentacion": {
+  "objetivo": { "principal": "...", "estrategia": "...", "duracion_inicial": "4 semanas" },
+  "perfil": { "edad": 29, "peso_kg": 74, "altura_cm": 179, "entrenamientos_por_semana": 3, "equipamiento": {...} },
+  "nutricion": {
     "calorias_objetivo_diarias_kcal": 2200,
     "proteina_objetivo_diaria_g": "135-150",
-    "principios": [ ... ],
-    "dieta_7_dias": [ { "dia": 1, "etiqueta": "Lunes", "desayuno": "...", "comida": "...", "snack": "...", "cena": "...", "kcal": 2200, "proteina": 145 } ],
-    "lista_compra_semanal": { "proteinas": [...], "carbohidratos": [...], ... }
-  }
+    "deficit_estimado_kcal": "200-300",
+    "ritmo_objetivo_perdida_peso_kg_semana": "0.2-0.4",
+    "principios": [ ... ]
+  },
+  "entrenamiento": {
+    "frecuencia": "3 días por semana",
+    "distribucion": "Lunes, miércoles y viernes",   // se mapea por orden a los bloques de la semana_1
+    "duracion_aproximada_minutos": "45-60",
+    "intensidad": "Normalmente 1-3 RIR",
+    "calentamiento": "...",
+    "progresion": { ... },
+    "semanas": {
+      "semana_1": {
+        "objetivo": "...", "intensidad": "...",
+        "dias": {
+          "dia_1_A": [ { "ejercicio": "Sentadilla búlgara", "series": 3, "repeticiones": "8-12 por pierna", "descanso_segundos": 120 }, ... ],
+          "dia_2_B": [ ... ],
+          "dia_3": "A"          // día de referencia a un bloque (o un array)
+        }
+      },
+      "semana_2": { ... }
+    }
+  },
+  "actividad_diaria": { ... },
+  "dieta_7_dias": {
+    "objetivo_diario": { ... },
+    "nota_pesos": "...",
+    "dias": {
+      "dia_1": { "desayuno": "...", "comida": "...", "snack": "...", "cena": "...", "calorias_aprox": 2200, "proteina_aprox_g": 145 },
+      ... "dia_7"
+    }
+  },
+  "lista_compra_semanal": { "proteinas": [...], "carbohidratos": [...], "verduras": [...], "grasas": [...] },
+  "preparacion_comidas": { ... },
+  "seguimiento": { ... },
+  "suplementos": { ... }
 }
 ```
 
-`normalize.js` acepta además el **antiguo formato "semanas 1-4 con A/B"** (ejercicios por `id`, campos `series`/`repeticiones`/`descanso_segundos`, alimentación bajo `nutricion`) y lo convierte al mismo modelo. El orden de `dias_semana` usa `Date.getDay()` (0 = Domingo). Si hoy no cae en `dias_semana`, el modo TV muestra descanso.
+El normalizador (`normalize.js`) crea los bloques A/B a partir de la **primera semana** (`semana_1.dias`), detecta la letra de bloque desde la clave del día (`dia_1_A` → A, `dia_2_B` → B) o por orden (1º=A, 2º=B, 3º=A...), y monta `dias_semana` mapeando la semana base a los días reales de `distribucion` (por orden). Si hoy no cae en `dias_semana`, el modo TV muestra descanso. El orden de `dias_semana` usa `Date.getDay()` (0 = Domingo).
+
+Los ejercicios se resuelven contra el catálogo **por nombre** para enlazar la guía (voz + GIF). Si un nombre no está en el catálogo, el ejercicio igual se muestra (sin guía detallada).
+
+`normalize.js` acepta además el **formato anterior** (`{ rutina, alimentacion }` con `dias_semana`/`bloques`/`dieta_7_dias` como array y `semanas` array) como retrocompatibilidad y lo convierte al mismo modelo.
 
 ## Modo entrenador guiado (TV)
 

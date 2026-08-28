@@ -1,56 +1,197 @@
 {
-  "rutina": {
-    "dias_semana": [
-      { "dia": "Lunes", "bloque": "A" },
-      { "dia": "Miércoles", "bloque": "B" },
-      { "dia": "Viernes", "bloque": "A" }
-    ],
-    "bloques": {
-      "A": [
-        { "ejercicio": "Sentadilla búlgara", "sets": 3, "reps": "8-12 por pierna", "descanso_s": 120 },
-        { "ejercicio": "Press de suelo", "sets": 3, "reps": "8-15", "descanso_s": 120 },
-        { "ejercicio": "Remo unilateral", "sets": 3, "reps": "10-15 por lado", "descanso_s": 90 },
-        { "ejercicio": "Elevaciones laterales", "sets": 3, "reps": "12-20", "descanso_s": 60 },
-        { "ejercicio": "Curl de bíceps", "sets": 2, "reps": "10-15", "descanso_s": 75 }
-      ],
-      "B": [
-        { "ejercicio": "Sentadilla goblet", "sets": 3, "reps": "10-15", "descanso_s": 120 },
-        { "ejercicio": "Press militar", "sets": 3, "reps": "8-15", "descanso_s": 120 },
-        { "ejercicio": "Remo con 2 mancuernas", "sets": 3, "reps": "10-15", "descanso_s": 90 },
-        { "ejercicio": "Hip thrust", "sets": 3, "reps": "10-20", "descanso_s": 90 },
-        { "ejercicio": "Curl martillo", "sets": 2, "reps": "10-15", "descanso_s": 75 }
-      ]
-    },
-    "config": {
-      "frecuencia": "3 días por semana",
-      "intensidad": "1-3 RIR",
-      "calentamiento": "5-8 minutos más 1-2 series ligeras"
+  "objetivo": {
+    "principal": "Perder grasa y ganar o mantener masa muscular",
+    "estrategia": "Recomposición corporal",
+    "duracion_inicial": "4 semanas"
+  },
+  "perfil": {
+    "edad": 29,
+    "peso_kg": 74,
+    "altura_cm": 179,
+    "entrenamientos_por_semana": 3,
+    "equipamiento": {
+      "mancuernas": 2,
+      "peso_maximo_por_mancuerna_kg": 12
     }
   },
-  "alimentacion": {
+  "nutricion": {
     "calorias_objetivo_diarias_kcal": 2200,
     "proteina_objetivo_diaria_g": "135-150",
     "deficit_estimado_kcal": "200-300",
     "ritmo_objetivo_perdida_peso_kg_semana": "0.2-0.4",
     "principios": [
       "Priorizar alimentos mínimamente procesados",
-      "Mantener proteína alta"
-    ],
-    "dieta_7_dias": [
-      {
-        "dia": 1, "etiqueta": "Lunes",
+      "Mantener proteína alta",
+      "No es necesario eliminar carbohidratos",
+      "No son necesarios suplementos",
+      "Ajustar calorías según evolución durante 2-3 semanas"
+    ]
+  },
+  "entrenamiento": {
+    "frecuencia": "3 días por semana",
+    "distribucion": "Lunes, miércoles y viernes",
+    "duracion_aproximada_minutos": "45-60",
+    "intensidad": "Normalmente 1-3 RIR",
+    "calentamiento": "5-8 minutos más 1-2 series ligeras del primer ejercicio",
+    "progresion": {
+      "prioridad": [
+        "Aumentar repeticiones",
+        "Aumentar dificultad",
+        "Utilizar variantes unilaterales",
+        "Usar tempo más lento",
+        "Añadir pausas",
+        "Aumentar series cuando corresponda"
+      ],
+      "regla": "Cuando se alcance el máximo de repeticiones con buena técnica y todavía exista margen, aumentar la dificultad"
+    },
+    "semanas": {
+      "semana_1": {
+        "objetivo": "Establecer técnica y cargas",
+        "intensidad": "2-3 RIR",
+        "dias": {
+          "dia_1_A": [
+            { "ejercicio": "Sentadilla búlgara", "series": 3, "repeticiones": "8-12 por pierna", "descanso_segundos": 120 },
+            { "ejercicio": "Press de suelo con mancuernas", "series": 3, "repeticiones": "8-15", "descanso_segundos": 120 },
+            { "ejercicio": "Remo unilateral", "series": 3, "repeticiones": "10-15 por lado", "descanso_segundos": 90 },
+            { "ejercicio": "Peso muerto rumano", "series": 3, "repeticiones": "10-15", "descanso_segundos": 120 },
+            { "ejercicio": "Elevaciones laterales", "series": 2, "repeticiones": "12-20", "descanso_segundos": 60 },
+            { "ejercicio": "Curl de bíceps", "series": 2, "repeticiones": "10-15", "descanso_segundos": 75 },
+            { "ejercicio": "Extensión de tríceps", "series": 2, "repeticiones": "10-15", "descanso_segundos": 75 }
+          ],
+          "dia_2_B": [
+            { "ejercicio": "Sentadilla goblet", "series": 3, "repeticiones": "10-15", "descanso_segundos": 120 },
+            { "ejercicio": "Press militar", "series": 3, "repeticiones": "8-15", "descanso_segundos": 120 },
+            { "ejercicio": "Remo con 2 mancuernas", "series": 3, "repeticiones": "10-15", "descanso_segundos": 90 },
+            { "ejercicio": "Hip thrust", "series": 3, "repeticiones": "10-20", "descanso_segundos": 90 },
+            { "ejercicio": "Zancadas", "series": 2, "repeticiones": "10-15 por pierna", "descanso_segundos": 90 },
+            { "ejercicio": "Curl martillo", "series": 2, "repeticiones": "10-15", "descanso_segundos": 75 },
+            { "ejercicio": "Extensión de tríceps", "series": 2, "repeticiones": "10-15", "descanso_segundos": 75 }
+          ],
+          "dia_3": "A"
+        }
+      },
+      "semana_2": {
+        "objetivo": "Aumentar ligeramente el volumen y las repeticiones",
+        "intensidad": "1-3 RIR",
+        "cambios": [
+          "Mantener los ejercicios de la semana 1",
+          "Intentar aumentar repeticiones manteniendo técnica",
+          "Añadir una serie a elevaciones laterales en Día A",
+          "Añadir una serie de zancadas en Día B"
+        ]
+      }
+    }
+  },
+  "actividad_diaria": {
+    "pasos_objetivo": "7000-10000 diarios",
+    "cardio": "Opcional; caminar es suficiente como base de actividad"
+  },
+  "dieta_7_dias": {
+    "objetivo_diario": {
+      "calorias_kcal": "~2200",
+      "proteina_g": "135-150"
+    },
+    "nota_pesos": "Arroz, pasta y avena se indican en peso en crudo",
+    "dias": {
+      "dia_1": {
         "desayuno": "60 g avena + 250 ml leche + 1 plátano + 2 huevos",
         "comida": "150-180 g pollo + 80-90 g arroz + 200 g verduras + 10 g aceite de oliva",
-        "snack": "200-250 g yogur griego + fruta",
+        "snack": "200-250 g yogur griego alto en proteína + fruta",
         "cena": "200 g merluza + 350 g patata + ensalada + 15 g aceite de oliva",
-        "kcal": 2200, "proteina": 145
+        "calorias_aprox": 2200,
+        "proteina_aprox_g": 145
+      },
+      "dia_2": {
+        "desayuno": "3 huevos + 80 g pan + 1 pieza de fruta",
+        "comida": "80-90 g pasta + 150 g carne picada magra + 150 g tomate triturado + 10 g aceite de oliva",
+        "snack": "200-250 g yogur griego alto en proteína + fruta + 20-30 g avena",
+        "cena": "170 g pollo + 350 g patata + 200 g verduras + 10 g aceite de oliva",
+        "calorias_aprox": 2200,
+        "proteina_aprox_g": 150
+      },
+      "dia_3": {
+        "desayuno": "60 g avena + 200-250 g yogur + 1 plátano + 10 g crema de cacahuete",
+        "comida": "150-180 g pollo + 80-90 g arroz + 200 g verduras + 10 g aceite de oliva",
+        "snack": "2 huevos + fruta",
+        "cena": "170 g salmón + 300 g patata + verduras",
+        "calorias_aprox": 2250,
+        "proteina_aprox_g": 140
+      },
+      "dia_4": {
+        "desayuno": "3 huevos + 80 g pan + 1 pieza de fruta",
+        "comida": "90 g pasta + 1-2 latas de atún al natural + 150 g tomate triturado + 10 g aceite de oliva",
+        "snack": "200-250 g yogur griego alto en proteína + 1 plátano",
+        "cena": "150-180 g pollo + 80-90 g arroz + 200 g verduras + 10 g aceite de oliva",
+        "calorias_aprox": 2150,
+        "proteina_aprox_g": 150
+      },
+      "dia_5": {
+        "desayuno": "60 g avena + 250 ml leche + 1 plátano + 2 huevos",
+        "comida": "170 g pollo + 350 g patata + 200 g verduras + 10 g aceite de oliva",
+        "snack": "200-250 g yogur griego alto en proteína + fruta",
+        "cena": "200 g merluza + 80-90 g arroz + 200 g verduras + 15 g aceite de oliva",
+        "calorias_aprox": 2200,
+        "proteina_aprox_g": 145
+      },
+      "dia_6": {
+        "desayuno": "3 huevos + 80 g pan + 1 pieza de fruta",
+        "comida": "150 g carne picada magra + 80-90 g arroz + 200 g verduras + 10 g aceite de oliva",
+        "snack": "200-250 g yogur griego alto en proteína + 20-30 g avena + fruta",
+        "cena": "170 g pollo + 350 g patata + ensalada + 10 g aceite de oliva",
+        "calorias_aprox": 2250,
+        "proteina_aprox_g": 150
+      },
+      "dia_7": {
+        "desayuno": "60 g avena + 200-250 g yogur + 1 plátano + 10 g crema de cacahuete",
+        "comida": "150-180 g pollo + 80-90 g pasta + 150 g tomate triturado + 10 g aceite de oliva",
+        "snack": "2 huevos + fruta",
+        "cena": "170 g salmón + 300 g patata + verduras",
+        "calorias_aprox": 2200,
+        "proteina_aprox_g": 140
       }
-    ],
-    "lista_compra_semanal": {
-      "proteinas": [ "1.2 kg pechuga de pollo", "18 huevos" ],
-      "carbohidratos": [ "500 g de avena", "500 g de arroz" ],
-      "verduras": [ "1.5-2 kg de verduras variadas" ],
-      "grasas": [ "Aceite de oliva virgen extra" ]
     }
+  },
+  "lista_compra_semanal": {
+    "proteinas": [
+      "1.2-1.4 kg de pechuga de pollo",
+      "400 g de merluza",
+      "350 g de salmón",
+      "300 g de carne picada magra",
+      "2-3 latas de atún al natural",
+      "18 huevos",
+      "1.5-2 kg de yogur griego alto en proteína",
+      "2 litros de leche"
+    ],
+    "carbohidratos": [
+      "500 g de avena",
+      "500 g de arroz",
+      "500 g de pasta",
+      "2.5 kg de patatas",
+      "500 g de pan",
+      "7 plátanos",
+      "7-10 piezas de otras frutas"
+    ],
+    "verduras": [
+      "1.5-2 kg de verduras variadas",
+      "2-3 bricks o latas de tomate triturado",
+      "2 bolsas de ensalada"
+    ],
+    "grasas": [
+      "Aceite de oliva virgen extra",
+      "Crema de cacahuete",
+      "150-200 g de frutos secos"
+    ]
+  },
+  "preparacion_comidas": {
+    "tiempo_maximo_por_cocinado_minutos": 30,
+    "estrategia": "Batch cooking dos veces por semana"
+  },
+  "seguimiento": {
+    "peso": "Pesarse 3-7 mañanas por semana y utilizar la media semanal",
+    "entrenamiento": "Registrar peso, repeticiones y RIR"
+  },
+  "suplementos": {
+    "necesarios": false,
+    "recomendacion": "No son necesarios para alcanzar el objetivo"
   }
 }
